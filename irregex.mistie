@@ -1,0 +1,48 @@
+;; -*- scheme -*-
+
+(mistie-def-ctl-seq 'item
+  (lambda ()
+    (h-make-section 4)))
+
+(mistie-def-ctl-seq 'table
+  (lambda ()
+    (h-ignore-spaces)
+    (let* ((old-escape-char mistie-escape-char)
+           (c (read-char)))
+      (mistie-push-frame)
+      (display "<table>")
+      (if (not (char=? c #\{))
+          (error "table body must be wrapped in {...}")
+          (let ((n 0)
+                (rows 0))
+            (set! mistie-escape-char #\\)
+            (mistie-def-char #\{
+              (lambda ()
+                (display #\{)
+                (set! n (+ n 1))))
+            (mistie-def-char #\}
+              (lambda ()
+                (if (= n 0)
+                    (begin
+                      (display "</table>")
+                      (mistie-pop-frame)
+                      (set! mistie-escape-char old-escape-char))
+                    (begin
+                      (display #\})
+                      (set! n (- n 1))))))
+            (mistie-def-char #\newline
+              (lambda ()
+                (let* ((ws (h-read-whitespace))
+                       (c (peek-char)))
+                  (if (positive? rows)
+                      (display "</td></tr>"))
+                  (newline)
+                  (display ws)
+                  (if (not (eqv? c #\}))
+                      (begin
+                        (display "<tr><td>")
+                        (set! rows (+ rows 1)))))))
+            (mistie-def-char #\|
+              (lambda ()
+                (display "</td><td>"))))))))
+
