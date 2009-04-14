@@ -234,7 +234,22 @@
   (test "h*llo world"
       (irregex-replace "[aeiou]" "hello world" "*"))
   (test "h*ll* w*rld"
-      (irregex-replace/all "[aeiou]" "hello world" "*")))
+      (irregex-replace/all "[aeiou]" "hello world" "*"))
+  (test '("bob@test.com" "fred@example.com")
+      (irregex-fold 'email
+                    (lambda (i m s) (cons (irregex-match-substring m) s))
+                    '()
+                    "bob@test.com and fred@example.com"
+                    (lambda (i s) (reverse s))))
+  (test '("bob@test.com" "fred@example.com")
+      (irregex-fold/chunked
+       'email
+       (lambda (src i m s) (cons (irregex-match-substring m) s))
+       '()
+       rope-chunker
+       (rope "bob@test.com and fred@example.com")
+       (lambda (src i s) (reverse s))))
+  )
 
 (test-end)
 

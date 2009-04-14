@@ -8,7 +8,7 @@
   (display "</style>\n"))
 
 \flushright{\urlh{http://synthcode.com/}{Alex Shinn}}
-\flushright{\urlh{http://synthcode.com/scheme/irregex/irregex-0.7.2.tar.gz}{Download Version 0.7.2}}
+\flushright{\urlh{http://synthcode.com/scheme/irregex/irregex-0.7.3.tar.gz}{Download Version 0.7.3}}
 
 \eval(display "<br /><br />\n\n<blockquote>")
 
@@ -709,6 +709,10 @@ so the above chunker could simply be defined as:
   (define rope-chunker
     (make-irregex-chunker (lambda (x) (and (pair? (cdr x)) (cdr x))) car))
 }
+
+\subsubsection*{(irregex-fold/chunked <irx> <kons> <knil> <chunker> <chunk> [<finish> [<start-index>]])}
+
+Chunked version of \q{irregex-fold}.
 
 \subsection{Utilities}
 
