@@ -964,7 +964,7 @@
                    ((#\= #\.)
                     (error "collating sequences not supported" str))
                    (else
-                    (error "bad character class" str)))))
+                    (go (+ i 1) (cons #\[ chars) ranges)))))
               ((#\\)
                (let ((c (string-ref str (+ i 1))))
                  (case c
