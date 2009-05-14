@@ -6,9 +6,6 @@
 
                  http://synthcode.com/scheme/irregex/
 
-                            version 0.7.2
-                               2009/2/11
-
 A fully portable and efficient R[456]RS implementation of regular
 expressions, supporting both POSIX syntax with various (irregular)
 PCRE extensions, as well as SCSH's SRE syntax.  DFA matching is used

@@ -1,7 +1,7 @@
 
 ;; derived from Gauche's regex tests
 
-(use riaxpander srfi-1 test)
+(use srfi-1 test)
 (load "irregex.scm")
 (load "irregex-utils.scm")
 

@@ -31,6 +31,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; History
 ;;
+;; 0.7.4: 2009/05/14 - empty alternates (or) and empty csets always fail,
+;;                     bugfix in default finalizer for irregex-fold/chunked
 ;; 0.7.3: 2009/04/14 - adding irregex-fold/chunked, minor doc fixes
 ;; 0.7.2: 2009/02/11 - some bugfixes, much improved documentation
 ;; 0.7.1: 2008/10/30 - several bugfixes (thanks to Derick Eddington)
@@ -1421,7 +1423,7 @@
                ((or)
                 (let lp2 ((ls (cdr sre)) (n n) (lo2 #f) (hi2 0))
                   (if (null? ls)
-                      (return (+ lo lo2) (and hi hi2 (+ hi hi2)))
+                      (return (+ lo (or lo2 1)) (and hi hi2 (+ hi hi2)))
                       (lp (car ls) n 0 0
                           (lambda (lo3 hi3)
                             (lp2 (cdr ls)
@@ -1545,7 +1547,7 @@
 ;; build a (or ls ...) sre from a list
 (define (sre-alternate ls)
   (cond
-   ((null? ls) 'epsilon)
+   ((null? ls) '(or))
    ((null? (cdr ls)) (car ls))
    (else (cons 'or ls))))
 
@@ -2055,24 +2057,28 @@
                            (flag-clear flags ~case-insensitive?)
                            next)))))))
               ((or)
-               (let* ((next (lp (cdr ls) n flags next))
-                      (b (and next
-                              (lp (list (sre-alternate (cddar ls)))
-                                  (new-state-number next)
-                                  flags
-                                  next)))
-                      (a (and b (lp (list (cadar ls))
-                                    (new-state-number b)
+               (let ((next (lp (cdr ls) n flags next)))
+                 (and
+                  next
+                  (if (null? (cdar ls))
+                      ;; empty (or) always fails
+                      `((,(new-state-number next)) ,@next)
+                      ;; compile both branches and insert epsilon
+                      ;; transitions to either
+                      (let* ((b (lp (list (sre-alternate (cddar ls)))
+                                    (new-state-number next)
                                     flags
-                                    next))))
-                 ;; compile both branches and insert epsilon
-                 ;; transitions to either
-                 (and a
-                      `((,(new-state-number a)
-                         (epsilon . ,(caar a))
-                         (epsilon . ,(caar b)))
-                        ,@(take-up-to a next)
-                        ,@b))))
+                                    next))
+                             (a (and b (lp (list (cadar ls))
+                                           (new-state-number b)
+                                           flags
+                                           next))))
+                        (and a
+                             `((,(new-state-number a)
+                                (epsilon . ,(caar a))
+                                (epsilon . ,(caar b)))
+                               ,@(take-up-to a next)
+                               ,@b)))))))
               ((?)
                (let ((next (lp (cdr ls) n flags next)))
                  ;; insert an epsilon transition directly to next
@@ -2107,30 +2113,31 @@
                        (set-cdr! (car new)
                                  `((epsilon . ,(caar a)) ,@(cdar new)))
                        a))))))
-;;;; need to add these to the match extractor first
-;;               ((=)
-;;                (lp (append (vector->list
-;;                             (make-vector (cadar ls)
-;;                                          (sre-sequence (cddar ls))))
-;;                            (cdr ls))
-;;                    n flags next))
-;;               ((>=)
-;;                (lp (append (vector->list
-;;                             (make-vector (- (cadar ls) 1)
-;;                                          (sre-sequence (cddar ls))))
-;;                            (cons `(+ ,@(cddar ls)) (cdr ls)))
-;;                    n flags next))
-;;               ((**)
-;;                (lp (append (vector->list
-;;                             (make-vector (cadar ls)
-;;                                          (sre-sequence (cdddar ls))))
-;;                            (map
-;;                             (lambda (x) `(? ,x))
-;;                             (vector->list
-;;                              (make-vector (- (caddar ls) (cadar ls))
-;;                                           (sre-sequence (cdddar ls)))))
-;;                            (cdr ls))
-;;                    n flags next))
+              ;; need to add these to the match extractor first,
+              ;; but they tend to generate large DFAs
+              ;;((=)
+              ;; (lp (append (vector->list
+              ;;              (make-vector (cadar ls)
+              ;;                           (sre-sequence (cddar ls))))
+              ;;             (cdr ls))
+              ;;     n flags next))
+              ;;((>=)
+              ;; (lp (append (vector->list
+              ;;              (make-vector (- (cadar ls) 1)
+              ;;                           (sre-sequence (cddar ls))))
+              ;;             (cons `(+ ,@(cddar ls)) (cdr ls)))
+              ;;     n flags next))
+              ;;((**)
+              ;; (lp (append (vector->list
+              ;;              (make-vector (cadar ls)
+              ;;                           (sre-sequence (cdddar ls))))
+              ;;             (map
+              ;;              (lambda (x) `(? ,x))
+              ;;              (vector->list
+              ;;               (make-vector (- (caddar ls) (cadar ls))
+              ;;                            (sre-sequence (cdddar ls)))))
+              ;;             (cdr ls))
+              ;;     n flags next))
               (($ submatch => submatch-named)
                ;; ignore submatches altogether
                (lp (cons (sre-sequence (cdar ls)) (cdr ls)) n flags next))
@@ -2424,18 +2431,20 @@
                                  (lp2 (- k 1) best-src best-index))))
                              (lp2 (- k 1) best-src best-index)))))))))
           ((or)
-           (let* ((rest (sre-alternate (cddr sre)))
-                  (match-first
-                   (lp (cadr sre) n #t))
-                  (match-rest
-                   (lp rest
-                       (+ n (sre-count-submatches (cadr sre)))
-                       submatch-deps?)))
-             (lambda (cnk start i end j matches)
-               (or (and (match-first cnk start i end j matches)
-                        (eq? end (vector-ref matches tmp-end-src-offset))
-                        (eqv? j (vector-ref matches tmp-end-index-offset)))
-                   (match-rest cnk start i end j matches)))))
+           (if (null? (cdr sre))
+               (lambda (cnk start i end j matches) #f)
+               (let* ((rest (sre-alternate (cddr sre)))
+                      (match-first
+                       (lp (cadr sre) n #t))
+                      (match-rest
+                       (lp rest
+                           (+ n (sre-count-submatches (cadr sre)))
+                           submatch-deps?)))
+                 (lambda (cnk start i end j matches)
+                   (or (and (match-first cnk start i end j matches)
+                            (eq? end (vector-ref matches tmp-end-src-offset))
+                            (eqv? j (vector-ref matches tmp-end-index-offset)))
+                       (match-rest cnk start i end j matches))))))
           ((* +)
            (letrec ((match-once
                      (lp (sre-sequence (cdr sre)) n #t))
@@ -3170,7 +3179,7 @@
 (define (irregex-fold/chunked irx kons knil cnk start . o)
   (let* ((irx (irregex irx))
          (matches (irregex-new-matches irx))
-         (finish (or (and (pair? o) (car o)) (lambda (i acc) acc)))
+         (finish (or (and (pair? o) (car o)) (lambda (src i acc) acc)))
          (i (if (and (pair? o) (pair? (cdr o)))
                 (cadr o)
                 ((chunker-get-start cnk) start))))

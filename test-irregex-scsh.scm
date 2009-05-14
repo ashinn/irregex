@@ -1,7 +1,7 @@
 
 ;;; Adapted from SCSH SRE tests by Christoph Hetz
 
-(use riaxpander test)
+(use test)
 (load "irregex.scm")
 
 (define-syntax rx

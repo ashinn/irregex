@@ -18,6 +18,7 @@ irregex-base.html: irregex.doc irregex.mistie irregex.css
 	              -e '(mistie-load "scmhilit.mistie")' \
 	              -e '(define h-page-count 0)' \
 	              -e '(mistie-load "xref.mistie")' \
+	              -e '(mistie-load "timestamp.mistie")' \
 	              -e '(mistie-load "irregex.mistie")' \
 	              -e '(mistie-main "$<")' > $@
 
@@ -41,9 +42,9 @@ distclean: clean
 	rm -f *.html
 
 dist: doc
-	rm -f irregex-`cat VERSION`.tgz
+	rm -f irregex-`cat VERSION`.tar.gz
 	mkdir irregex-`cat VERSION`
 	for f in `hg manifest`; do mkdir -p irregex-`cat VERSION`/`dirname $$f`; ln -s `pwd`/$$f irregex-`cat VERSION`/$$f; done
 	cd irregex-`cat VERSION`; for f in `echo ../*.html`; do ln -s $$f; done; cd ..
-	tar cphzvf irregex-`cat VERSION`.tgz irregex-`cat VERSION`
+	tar cphzvf irregex-`cat VERSION`.tar.gz irregex-`cat VERSION`
 	rm -rf irregex-`cat VERSION`

@@ -1,5 +1,8 @@
 #!/usr/local/bin/csi -script
 
+;; just run this file as "csi -script test-all.scm" to run the full
+;; test suite
+
 (use test extras utils irregex)
 
 (test-begin)
