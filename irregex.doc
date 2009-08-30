@@ -8,7 +8,7 @@
   (display "</style>\n"))
 
 \flushright{\urlh{http://synthcode.com/}{Alex Shinn}}
-\flushright{\urlh{http://synthcode.com/scheme/irregex/irregex-0.7.4.tar.gz}{Download Version 0.7.4}}
+\flushright{\urlh{http://synthcode.com/scheme/irregex/irregex-0.7.5.tar.gz}{Download Version 0.7.5}}
 
 \eval(display "<br /><br />\n\n<blockquote>")
 
@@ -199,6 +199,14 @@ Examples:
   \q{(irregex-replace "[aeiou]" "hello world" "*") => "h*llo world"}
 
   \q{(irregex-replace/all "[aeiou]" "hello world" "*") => "h*ll* w*rld"}
+
+\subsubsection*{(irregex-split <irx> <str> [<start> <end>])}
+\subsubsection*{(irregex-extract <irx> <str> [<start> <end>])}
+
+\q{irregex-split} splits the string \q{<str>} into substrings divided
+by the pattern in \q{<irx>}.  \q{irregex-extract} does the opposite,
+returning a list of each instance of the pattern matched disregarding
+the substrings in between.
 
 \subsubsection*{(irregex-fold <irx> <kons> <knil> <str> [<finish> <start> <end>])}
 
@@ -640,7 +648,7 @@ text-buffer opened onto a 500MB file.
 IrRegex provides a chunked string API specifically for this purpose.
 You define a chunking API with
 
-\subsubsection*{(make-irregex-chunker <get-next> <get-string> [<get-start> <get-end> <get-next> <get-substring> <get-subchunk>])}
+\subsubsection*{(make-irregex-chunker <get-next> <get-string> [<get-start> <get-end> <get-substring> <get-subchunk>])}
 
 where 
 
@@ -672,8 +680,8 @@ without it you may not use \q{irregex-match-subchunk} described above.
 You can then match chunks of these types with the following
 procedures:
 
-\subsubsection*{(irregex-search/chunked <irx> <chunker> <chunk>)}
-\subsubsection*{(irregex-match/chunked <irx> <chunker> <chunk>)}
+\subsubsection*{(irregex-search/chunked <irx> <chunker> <chunk> [<start>])}
+\subsubsection*{(irregex-match/chunked <irx> <chunker> <chunk> [<start>])}
 
 These return normal match-data objects.
 
@@ -726,7 +734,7 @@ expressions.
 
 \subsubsection*{(irregex-opt <list-of-strings>)}
 
-Returns an optimized POSIX string matching any of the literal strings
+Returns an optimized SRE matching any of the literal strings
 in the list, like Emacs' \q{regexp-opt}.  Note this optimization
 doesn't help when irregex is able to build a DFA.
 
