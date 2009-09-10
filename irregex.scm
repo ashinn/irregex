@@ -86,8 +86,9 @@
 (define (irregex-copy-matches m)
   (and (vector? m)
        (let ((r (make-vector (vector-length m))))
-         (vector-copy! m r)
-         r)))
+         (do ((i (- (vector-length m) 1) (- i 1)))
+             ((< i 0) r)
+           (vector-set! r i (vector-ref m i))))))
 
 (define irregex-match-tag '*irregex-match-tag*)
 
@@ -2000,7 +2001,7 @@
 ;; at the head of the list, and all remaining states will be in
 ;; descending numeric order, with state 0 being the unique accepting
 ;; state.
-(define (sre->nfa-list sre . o)
+(define (sre->nfa-list sre o)
   ;; we loop over an implicit sequence list
   (let lp ((ls (list sre))
            (n 1)
@@ -2174,7 +2175,7 @@
           #f)))))
 
 (define (sre->nfa sre . o)
-  (let ((nfa-ls (apply sre->nfa-list sre o)))
+  (let ((nfa-ls (sre->nfa-list sre o)))
     (and (pair? nfa-ls)
          (let ((res (make-vector (+ 1 (caar nfa-ls)) '())))
            (do ((ls nfa-ls (cdr ls)))
@@ -2208,11 +2209,21 @@
 ;; NFA multi-state representation
 
 ;; (define (make-nfa-multi-state n)
-;;   (make-vector (quotient (+ n 27) 28) 0))
+;;   (make-vector (quotient (+ n 23) 24) 0))
+
+;; (define (reset-nfa-multi-state mst)
+;;   (do ((i (- (vector-length mst) 1) (- i 1)))
+;;       ((< i 0) mst)
+;;     (vector-set! mst i 0)))
+
+;; (define (nfa-multi-state-contains? mst i)
+;;   (let ((cell (quotient i 24))
+;;         (bit (remainder i 24)))
+;;     (not (zero? (bit-ior (vector-ref mst cell) (bit-shl 1 bit))))))
 
 ;; (define (nfa-multi-state-add! mst i)
-;;   (let ((cell (quotient i 28))
-;;         (bit (remainder i 28)))
+;;   (let ((cell (quotient i 24))
+;;         (bit (remainder i 24)))
 ;;     (vector-set! mst cell (bit-ior (vector-ref mst cell) (bit-shl 1 bit)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -2249,7 +2260,6 @@
 ;; When the conversion is complete we renumber the DFA sets-of-states
 ;; in order and convert the result to a vector for fast lookup.
 (define (dfa-renumber dfa)
-  ;;(print (map length (map car dfa)))
   (let ((states (map cons (map car dfa) (zero-to (length dfa)))))
     (define (renumber state)
       (cdr (assoc state states)))
