@@ -1318,10 +1318,12 @@
           (cond ((memq 'backtrack o) #f)
                 (searcher? #t)
                 ((sre->nfa `(seq (* any) ,sre-dfa) pat-flags)
-                 => (lambda (nfa) (nfa->dfa nfa (* dfa-limit (length nfa)))))
+                 => (lambda (nfa)
+                      (nfa->dfa nfa (* dfa-limit (nfa-num-states nfa)))))
                 (else #f)))
          (dfa (cond ((and dfa/search (sre->nfa sre-dfa pat-flags))
-                     => (lambda (nfa) (nfa->dfa nfa (* dfa-limit (length nfa)))))
+                     => (lambda (nfa)
+                          (nfa->dfa nfa (* dfa-limit (nfa-num-states nfa)))))
                     (else #f)))
          (submatches (sre-count-submatches sre-dfa))
          (extractor
@@ -1998,7 +2000,7 @@
 ;; at the head of the list, and all remaining states will be in
 ;; descending numeric order, with state 0 being the unique accepting
 ;; state.
-(define (sre->nfa sre . o)
+(define (sre->nfa-list sre . o)
   ;; we loop over an implicit sequence list
   (let lp ((ls (list sre))
            (n 1)
@@ -2171,6 +2173,18 @@
          (else
           #f)))))
 
+(define (sre->nfa sre . o)
+  (let ((nfa-ls (apply sre->nfa-list sre o)))
+    (and (pair? nfa-ls)
+         (let ((res (make-vector (+ 1 (caar nfa-ls)) '())))
+           (do ((ls nfa-ls (cdr ls)))
+               ((null? ls) res)
+             (vector-set! res (caar ls) (cdar ls)))))))
+
+(define (nfa-num-states nfa) (vector-length nfa))
+(define (nfa-start-state nfa) (- (vector-length nfa) 1))
+(define (nfa-get-state nfa i) (vector-ref nfa i))
+
 ;; We don't really want to use this, we use the closure compilation
 ;; below instead, but this is included for reference and testing the
 ;; sre->nfa conversion.
@@ -2191,6 +2205,17 @@
 ;;              (cdr state)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; NFA multi-state representation
+
+;; (define (make-nfa-multi-state n)
+;;   (make-vector (quotient (+ n 27) 28) 0))
+
+;; (define (nfa-multi-state-add! mst i)
+;;   (let ((cell (quotient i 28))
+;;         (bit (remainder i 28)))
+;;     (vector-set! mst cell (bit-ior (vector-ref mst cell) (bit-shl 1 bit)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; NFA->DFA compilation
 ;;
 ;; During processing, the DFA is a list of the form:
@@ -2204,7 +2229,7 @@
 
 (define (nfa->dfa nfa . o)
   (let ((max-states (and (pair? o) (car o))))
-    (let lp ((ls (list (nfa-closure nfa (list (caar nfa)))))
+    (let lp ((ls (list (nfa-closure nfa (list (nfa-start-state nfa)))))
              (i 0)
              (res '()))
       (cond
@@ -2215,7 +2240,7 @@
        (else
         (let* ((states (car ls))
                (trans (nfa-state-transitions nfa states))
-               (accept? (and (memv 0 states) #t)))
+               (accept? (and (memq 0 states) #t)))
           (and (or (not max-states) (< (+ i 1) max-states))
                (lp (append (map cdr trans) (cdr ls))
                    (+ i 1)
@@ -2224,6 +2249,7 @@
 ;; When the conversion is complete we renumber the DFA sets-of-states
 ;; in order and convert the result to a vector for fast lookup.
 (define (dfa-renumber dfa)
+  ;;(print (map length (map car dfa)))
   (let ((states (map cons (map car dfa) (zero-to (length dfa)))))
     (define (renumber state)
       (cdr (assoc state states)))
@@ -2247,8 +2273,8 @@
       (if (null? ls)
           (map (lambda (x) (cons (car x) (nfa-closure nfa (cdr x))))
                res)
-          (let ((node (assv (car ls) nfa)))
-            (lp (if node (cdr node) '()) (cdr ls) res))))
+          (let ((node (nfa-get-state nfa (car ls))))
+            (lp node (cdr ls) res))))
      ((eq? 'epsilon (caar trans))
       (lp (cdr trans) ls res))
      (else
@@ -2356,12 +2382,12 @@
     (cond
      ((null? ls)
       res)
-     ((memv (car ls) res)
+     ((memq (car ls) res)
       (lp (cdr ls) res))
      (else
       (lp (append (map cdr
                        (filter (lambda (trans) (eq? 'epsilon (car trans)))
-                               (cdr (assv (car ls) nfa))))
+                               (nfa-get-state nfa (car ls))))
                   (cdr ls))
           (insert-sorted (car ls) res))))))
 
@@ -3298,9 +3324,6 @@
            a
            (cons (substring str i (irregex-match-start-index m 0)) a)))
      (lambda (i a)
-       (reverse
-        (if (= end (irregex-match-end-index m 0))
-            a
-            (cons (substring str (irregex-match-end-index m 0) end) a))))
+       (reverse (if (= i end) a (cons (substring str i end) a))))
      start
      end)))
