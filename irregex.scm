@@ -2286,6 +2286,21 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; NFA multi-state representation
 
+(define (nfa-multi-state-copy mst)
+  (map (lambda (x) x) mst))
+
+(define (nfa-multi-state-contains? mst i)
+  (memq i mst))
+
+(define (nfa-multi-state-fold mst kons knil)
+  (fold kons knil mst))
+
+(define (nfa-multi-state-add! mst i)
+  (insert-sorted! i mst))
+
+(define (nfa-multi-state-add mst i)
+  (insert-sorted i mst))
+
 ;; (define (make-nfa-multi-state nfa)
 ;;   (make-vector (quotient (+ (vector-length nfa) 23) 24) 0))
 
@@ -2354,16 +2369,17 @@
       (cond
        ((null? ls)
         (dfa-renumber (reverse res)))
-       ((assoc (car ls) res)
+       ((assoc (car ls) res) ;; already seen this combination of states
         (lp (cdr ls) i res))
+       ((or (not max-states) (< (+ i 1) max-states)) ;; too many DFA states
+        #f)
        (else
         (let* ((states (car ls))
                (trans (nfa-state-transitions nfa states))
-               (accept? (and (memq 0 states) #t)))
-          (and (or (not max-states) (< (+ i 1) max-states))
-               (lp (append (map cdr trans) (cdr ls))
-                   (+ i 1)
-                   `((,states ,accept? ,@trans) ,@res)))))))))
+               (accept? (and (nfa-multi-state-contains? states 0) #t)))
+          (lp (append (map cdr trans) (cdr ls))
+              (+ i 1)
+              `((,states ,accept? ,@trans) ,@res))))))))
 
 ;; When the conversion is complete we renumber the DFA sets-of-states
 ;; in order and convert the result to a vector for fast lookup.
@@ -2382,21 +2398,26 @@
 ;; Extract all distinct characters or ranges and the potential states
 ;; they can transition to from a given set of states.  Any ranges that
 ;; would overlap with distinct characters are split accordingly.
+;; (define (nfa-state-transitions nfa states)
+;;   (let lp ((trans '())   ;; list of (char . state) or ((char . char) . state)
+;;            (ls states)   ;; list of integers (remaining state numbers)
+;;            (res '()))    ;; (char state ...) or ((char . char) state ...)
+;;     (cond
+;;      ((null? trans)
+;;       (if (null? ls)
+;;           (map (lambda (x) (cons (car x) (nfa-closure nfa (cdr x)))) res)
+;;           (lp (nfa-get-state-trans nfa (car ls)) (cdr ls) res)))
+;;      (else
+;;       (lp (cdr trans) ls (nfa-join-transitions! res (car trans)))))))
+
 (define (nfa-state-transitions nfa states)
-  (let lp ((trans '())   ;; list of (char . state) or ((char . char) . state)
-           (ls states)   ;; list of integers (remaining state numbers)
-           (res '()))    ;; (char state ...) or ((char . char) state ...)
-    (cond
-     ((null? trans)
-      (if (null? ls)
-          (map (lambda (x) (cons (car x) (nfa-closure nfa (cdr x))))
-               res)
-          (let ((node (nfa-get-state-trans nfa (car ls))))
-            (lp node (cdr ls) res))))
-;;      ((eq? 'epsilon (caar trans))
-;;       (lp (cdr trans) ls res))
-     (else
-      (lp (cdr trans) ls (nfa-join-transitions! res (car trans)))))))
+  (nfa-multi-state-fold
+   states
+   (lambda (st res)
+     (fold (lambda (trans res) (nfa-join-transitions! res (car trans)))
+           res
+           (nfa-get-state-trans nfa st)))
+   '()))
 
 (define (nfa-join-transitions! existing new)
   (define (join ls elt state)
@@ -2413,7 +2434,7 @@
           (cons (list ch (cdr new)) existing))
          ((eqv? ch (caar ls))
           ;; add a new state to an existing char
-          (set-cdr! (car ls) (insert-sorted (cdr new) (cdar ls)))
+          (set-cdr! (car ls) (nfa-multi-state-add! (cdr new) (cdar ls)))
           existing)
          ((and (pair? (caar ls))
                (char<=? (caaar ls) ch)
@@ -2421,7 +2442,7 @@
           ;; split a range
           (apply
            (lambda (left right)
-             (cons (cons ch (insert-sorted (cdr new) (cdar ls)))
+             (cons (cons ch (nfa-multi-state-add! (cdr new) (cdar ls)))
                    (append (if left (list (cons left (cdar ls))) '())
                            (if right (list (cons right (cdar ls))) '())
                            res
@@ -2441,23 +2462,27 @@
           ;; range enclosing a character
           (apply
            (lambda (left right)
-             (set-cdr! (car ls) (insert-sorted (cdr new) (cdar ls)))
-             (join (join existing left (cdr new)) right (cdr new)))
+             (let ((left-copy (nfa-multi-state-copy (cdr new)))
+                   (right-copy (nfa-multi-state-copy (cdr new))))
+               (set-cdr! (car ls) (nfa-multi-state-add! (cdr new) (cdar ls)))
+               (join (join existing left left-copy) right right-copy)))
            (split-char-range (car new) (caar ls))))
          ((and (pair? (caar ls))
                (or (and (char<=? (caaar ls) hi) (char<=? lo (cdaar ls)))
                    (and (char<=? hi (caaar ls)) (char<=? (cdaar ls) lo))))
           ;; overlapping ranges
           (apply
-           (lambda (left1 left2 same right1 right2)
-             (let ((old-states (cdar ls)))
+           (lambda (left1 left2 same right1 right2) ;; 5 regions
+             (let ((old-states (cdar ls))
+                   (left-copy (nfa-multi-state-copy (cdr new)))
+                   (left2-copy (nfa-multi-state-copy (cdr new))))
                (set-car! (car ls) same)
-               (set-cdr! (car ls) (insert-sorted (cdr new) old-states))
+               (set-cdr! (car ls) (nfa-multi-state-add! (cdr new) old-states))
                (let* ((res (if right1
                                (cons (cons right1 old-states) existing)
                                existing))
                       (res (if right2 (cons (cons right2 old-states) res) res)))
-                 (join (join res left1 (cdr new)) left2 (cdr new)))))
+                 (join (join res left1 left-copy) left2 left2-copy))))
            (intersect-char-ranges (car new) (caar ls))))
          (else
           (lp (cdr ls) (cons (car ls) res)))))))))
@@ -2473,7 +2498,7 @@
    (and (not (eqv? ch (cdr range)))
         (char-range (integer->char (+ (char->integer ch) 1)) (cdr range)))))
 
-;; returns (possibly #f) char ranges:
+;; returns 5 (possibly #f) char ranges:
 ;;    a-only-1  a-only-2  a-and-b  b-only-1  b-only-2
 (define (intersect-char-ranges a b)
   (if (char>? (car a) (car b))
@@ -2510,11 +2535,11 @@
     (cond
      ((null? ls)
       res)
-     ((memq (car ls) res)
+     ((nfa-multi-state-contains? res (car ls))
       (lp (cdr ls) res))
      (else
       (lp (append (nfa-get-epsilons nfa (car ls)) (cdr ls))
-          (insert-sorted (car ls) res))))))
+          (nfa-multi-state-add! res (car ls)))))))
 
 (define (nfa-closure-internal nfa states)
   (fold
@@ -2539,6 +2564,22 @@
         (cons n ls)))
    (else
     (cons (car ls) (insert-sorted n (cdr ls))))))
+
+(define (insert-sorted! n ls)
+  (cond
+   ((null? ls)
+    (cons n '()))
+   ((<= n (car ls))
+    (if (= n (car ls))
+        ls
+        (cons n ls)))
+   (else
+    (let lp ((head ls) (tail (cdr ls)))
+      (cond ((or (null? tail) (< n (car tail)))
+             (set-cdr! head (cons n tail)))
+            ((> n (car tail))
+             (lp tail (cdr tail)))))
+    ls)))
 
 (define (merge-sorted a b)
   (cond ((null? a) b)
