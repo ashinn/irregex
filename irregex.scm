@@ -15,7 +15,7 @@
 ;; force, -- the Baker Street irregulars."
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Notes
+;;; Notes
 ;;
 ;; This code should not require any porting - it should work out of
 ;; the box in any R[45]RS Scheme implementation.  Slight modifications
@@ -29,8 +29,9 @@
 ;; nice.
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; History
+;;; History
 ;;
+;;        2009/09/** - 0.8.0 pre-release
 ;; 0.7.5: 2009/08/31 - adding irregex-extract and irregex-split
 ;;                     *-fold copies match data (use *-fold/fast for speed)
 ;;                     irregex-opt now returns an SRE
@@ -52,7 +53,7 @@
 ;;   0.1: 2005/08/18 - simple NFA interpreter over abstract chunked strings
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; data structures
+;;; Data Structures
 
 (define irregex-tag '*irregex-tag*)
 
@@ -235,14 +236,14 @@
                   (chunk-before? cnk next b))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; string utilities
+;;; String Utilities
 
-;;;; Unicode version (skip surrogates)
+;; Unicode version (skip surrogates)
 (define *all-chars*
   `(/ ,(integer->char 0) ,(integer->char #xD7FF)
       ,(integer->char #xE000) ,(integer->char #x10FFFF)))
 
-;;;; ASCII version, offset to not assume 0-255
+;; ASCII version, offset to not assume 0-255
 ;; (define *all-chars* `(/ ,(integer->char (- (char->integer #\space) 32)) ,(integer->char (+ (char->integer #\space) 223))))
 
 ;; set to #f to ignore even an explicit request for utf8 handling
@@ -317,7 +318,7 @@
     res))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; list utilities
+;;; List Utilities
 
 ;; like the one-arg IOTA case
 (define (zero-to n)
@@ -387,7 +388,7 @@
         (lp (cdr ls) (if (pred (car ls)) res (cons (car ls) res))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; flags
+;;; Flags
 
 (define (bit-shr n i)
   (quotient n (expt 2 i)))
@@ -413,6 +414,16 @@
     (+ (if (and (odd? a) (odd? b)) 1 0)
        (* 2 (bit-and (quotient a 2) (quotient b 2)))))))
 
+(define (integer-log n)
+  (define (b8 n r)
+    (if (>= n (bit-shl 1 8)) (b4 (bit-shr n 8) (+ r 8)) (b4 n r)))
+  (define (b4 n r)
+    (if (>= n (bit-shl 1 4)) (b2 (bit-shr n 4) (+ r 4)) (b2 n r)))
+  (define (b2 n r)
+    (if (>= n (bit-shl 1 2)) (b1 (bit-shr n 2) (+ r 2)) (b1 n r)))
+  (define (b1 n r) (if (>= n (bit-shl 1 1)) (+ r 1) r))
+  (if (>= n (bit-shl 1 16)) (b8 (bit-shr n 16) 16) (b8 n 0)))
+
 (define (flag-set? flags i)
   (= i (bit-and flags i)))
 (define (flag-join a b)
@@ -425,7 +436,7 @@
 (define ~consumer? 2)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; parsing pcre strings (yuck)
+;;; Parsing PCRE Strings
 
 (define ~save? 1)
 (define ~case-insensitive? 2)
@@ -564,7 +575,7 @@
               ((#\?)
                (let ((res (collect/single)))
                  (if (null? res)
-                     (error "? can't follow empty sre" str res)
+                     (error "? can't follow empty pattern" str res)
                      (let ((x (car res)))
                        (lp (+ i 1)
                            (+ i 1)
@@ -588,9 +599,9 @@
                       (op (string->symbol (string c))))
                  (cond
                   ((sre-repeater? x)
-                   (error "duplicate repetition (e.g. **) in sre" str res))
+                   (error "duplicate repetition (e.g. **) in pattern" str res))
                   ((sre-empty? x)
-                   (error "can't repeat empty sre (e.g. ()*)" str res))
+                   (error "can't repeat empty pattern (e.g. ()*)" str res))
                   (else
                    (lp (+ i 1) (+ i 1) flags
                        (cons (list op x) (cdr res))
@@ -717,25 +728,35 @@
                   (lp (+ j 1) (+ j 1) flags (cons sre (collect)) st))
                 (string-parse-cset str (+ i 1) flags)))
               ((#\{)
-               (if (or (>= (+ i 1) end)
-                       (not (or (char-numeric? (string-ref str (+ i 1)))
-                                (eqv? #\, (string-ref str (+ i 1))))))
-                   (lp (+ i 1) from flags res st)
-                   (let* ((res (collect/single))
-                          (x (car res))
-                          (tail (cdr res))
-                          (j (string-scan-char str #\} (+ i 1)))
-                          (s2 (string-split-char (substring str (+ i 1) j) #\,))
-                          (n (or (string->number (car s2)) 0))
-                          (m (and (pair? (cdr s2)) (string->number (cadr s2)))))
-                     (cond
-                      ((null? (cdr s2))
-                       (lp (+ j 1) (+ j 1) flags `((= ,n ,x) ,@tail) st))
-                      (m
-                       (lp (+ j 1) (+ j 1) flags `((** ,n ,m ,x) ,@tail) st))
-                      (else
-                       (lp (+ j 1) (+ j 1) flags `((>= ,n ,x) ,@tail) st)
-                       )))))
+               (cond
+                ((or (>= (+ i 1) end)
+                     (not (or (char-numeric? (string-ref str (+ i 1)))
+                              (eqv? #\, (string-ref str (+ i 1))))))
+                 (lp (+ i 1) from flags res st))
+                (else
+                 (let ((res (collect/single)))
+                   (cond
+                    ((null? res)
+                     (error "{ can't follow empty pattern"))
+                    (else
+                     (let* ((x (car res))
+                            (tail (cdr res))
+                            (j (string-scan-char str #\} (+ i 1)))
+                            (s2 (string-split-char (substring str (+ i 1) j)
+                                                   #\,))
+                            (n (string->number (car s2)))
+                            (m (and (pair? (cdr s2))
+                                    (string->number (cadr s2)))))
+                       (cond
+                        ((or (not n) (and (pair? (cdr s2)) (not m)))
+                         (error "invalid {n} repetition syntax"))
+                        ((null? (cdr s2))
+                         (lp (+ j 1) (+ j 1) flags `((= ,n ,x) ,@tail) st))
+                        (m
+                         (lp (+ j 1) (+ j 1) flags `((** ,n ,m ,x) ,@tail) st))
+                        (else
+                         (lp (+ j 1) (+ j 1) flags `((>= ,n ,x) ,@tail) st)
+                         )))))))))
               ((#\\)
                (cond
                 ((>= (+ i 1) end)
@@ -1018,7 +1039,7 @@
         (go start '() '()))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; utf8 utilities
+;;; UTF-8 Utilities
 
 ;; Here are some hairy optimizations that need to be documented
 ;; better.  Thanks to these, we never do any utf8 processing once the
@@ -1296,7 +1317,7 @@
              sre)))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; compilation
+;;; Compilation
 
 (define (irregex x . o)
   (cond
@@ -1342,7 +1363,7 @@
         (make-irregex #f #f #f f flags submatches lens names))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; sre analysis
+;;; SRE Analysis
 
 ;; returns #t if the sre can ever be empty
 (define (sre-empty? sre)
@@ -1555,7 +1576,7 @@
     sublens))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; sre manipulation
+;;; SRE Manipulation
 
 ;; build a (seq ls ...) sre from a list
 (define (sre-sequence ls)
@@ -1643,7 +1664,7 @@
     sre)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; matching
+;;; Basic Matching
 
 (define irregex-basic-string-chunker
   (make-irregex-chunker (lambda (x) #f)
@@ -1783,7 +1804,7 @@
              m))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; DFA matching
+;;; DFA Matching
 
 ;; inline these
 (define (dfa-init-state dfa)
@@ -1887,13 +1908,7 @@
                 #f))))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; SRE->NFA compilation
-;;
-;; An NFA state is a numbered node with a list of patter->number
-;; transitions, where pattern is either a character, (lo . hi)
-;; character range, or epsilon (indicating an empty transition).
-;; There may be duplicate characters and overlapping ranges - since
-;; it's an NFA we process it by considering all possible transitions.
+;;; Named Definitions
 
 (define sre-named-definitions
   `((any . ,*all-chars*)
@@ -1997,194 +2012,248 @@
 
     ))
 
-;; Compile and return the list of NFA states.  The start state will be
-;; at the head of the list, and all remaining states will be in
-;; descending numeric order, with state 0 being the unique accepting
-;; state.
-(define (sre->nfa-list sre o)
-  ;; we loop over an implicit sequence list
-  (let lp ((ls (list sre))
-           (n 1)
-           (flags (if (pair? o) (car o) ~none))
-           (next (list (list 0))))
-    (define (new-state-number state)
-      (max n (+ 1 (caar state))))
-    (define (extend-state next . trans)
-      (and next
-           (cons (cons (new-state-number next)
-                       (map (lambda (x) (cons x (caar next))) trans))
-                 next)))
-    (if (null? ls)
-        next
-        (cond
-         ((string? (car ls))
-          ;; process literal strings a char at a time
-          (lp (append (string->list (car ls)) (cdr ls)) n flags next))
-         ((eq? 'epsilon (car ls))
-          ;; chars and epsilons go directly into the transition table
-          (extend-state (lp (cdr ls) n flags next) (car ls)))
-         ((char? (car ls))
-          (let ((alt (char-altcase (car ls))))
-            (if (and (flag-set? flags ~case-insensitive?)
-                     (not (eqv? (car ls) alt)))
-                (extend-state (lp (cdr ls) n flags next) (car ls) alt)
-                (extend-state (lp (cdr ls) n flags next) (car ls)))))
-         ((symbol? (car ls))
-          (let ((cell (assq (car ls) sre-named-definitions)))
-            (and cell
-                 (lp (cons (if (procedure? (cdr cell))
-                               ((cdr cell))
-                               (cdr cell))
-                           (cdr ls)) n flags next))))
-         ((pair? (car ls))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; SRE->NFA compilation
+;;
+;; An NFA state is a numbered node with a list of patter->number
+;; transitions, where pattern is either a character, (lo . hi)
+;; character range, or epsilon (indicating an empty transition).
+;; There may be duplicate characters and overlapping ranges - since
+;; it's an NFA we process it by considering all possible transitions.
+
+(define *nfa-presize* 128)  ;; constant
+(define *nfa-num-fields* 4) ;; constant
+
+(define (nfa-num-states nfa) (quotient (vector-length nfa) *nfa-num-fields*))
+(define (nfa-start-state nfa) (- (nfa-num-states nfa) 1))
+
+(define (nfa-get-state-trans nfa i)
+  (vector-ref nfa (* i *nfa-num-fields*)))
+(define (nfa-set-state-trans! nfa i x)
+  (vector-set! nfa (* i *nfa-num-fields*) x))
+(define (nfa-push-state-trans! nfa i x)
+  (nfa-set-state-trans! nfa i (cons x (nfa-get-state-trans nfa i))))
+
+(define (nfa-get-epsilons nfa i)
+  (vector-ref nfa (+ (* i *nfa-num-fields*) 1)))
+(define (nfa-set-epsilons! nfa i x)
+  (vector-set! nfa (+ (* i *nfa-num-fields*) 1) x))
+(define (nfa-add-epsilon! nfa i x)
+  (nfa-set-epsilons! nfa i (insert-sorted x (nfa-get-epsilons nfa i))))
+
+(define (nfa-get-state-closure nfa i)
+  (vector-ref nfa (+ (* i *nfa-num-fields*) 2)))
+(define (nfa-set-state-closure! nfa i x)
+  (vector-set! nfa (+ (* i *nfa-num-fields*) 2) x))
+
+(define (nfa-get-closure nfa states)
+  (cond ((assoc (cdr states)
+                (vector-ref nfa (+ (* (car states) *nfa-num-fields*) 3)))
+         => cdr)
+        (else #f)))
+(define (nfa-add-closure! nfa states x)
+  (let ((i (+ (* (car states) *nfa-num-fields*) 3)))
+    (vector-set! nfa i (cons (cons (cdr states) x) (vector-ref nfa i)))))
+
+;; Compile and return the vector of NFA states.  The start state will
+;; be the last element of the vector, and all remaining states will be
+;; in descending numeric order, with state 0 being the unique
+;; accepting state.
+(define (sre->nfa sre init-flags)
+  (let ((buf (make-vector (* *nfa-presize* 2) '())))
+    ;; we loop over an implicit sequence list
+    (define (lp ls n flags next)
+      (define (new-state-number state)
+        (max n (+ 1 state)))
+      (define (add-state! n2 trans-ls)
+        (if (> (+ n2 *nfa-num-fields*) (vector-length buf))
+            (let ((tmp (make-vector (* 2 (vector-length buf)) '())))
+              (do ((i (- (vector-length buf) 1) (- i 1)))
+                  ((< i 0))
+                (vector-set! tmp i (vector-ref buf i)))
+              (set! buf tmp)))
+        (nfa-set-state-trans! buf n2 trans-ls)
+        n2)
+      (define (extend-state! next . trans)
+        (and next
+             (add-state! (new-state-number next)
+                         (map (lambda (x) (cons x next)) trans))))
+      (define (add-char-state! next ch)
+        (let ((alt (char-altcase ch)))
+          (if (and (flag-set? flags ~case-insensitive?) (not (eqv? ch alt)))
+              (extend-state! next ch alt)
+              (extend-state! next ch))))
+      (if (null? ls)
+          next
           (cond
-           ((string? (caar ls))
-            ;; enumerated character set
-            (lp (cons (sre-alternate (string->list (caar ls))) (cdr ls))
-                n
-                flags
-                next))
-           (else
-            (case (caar ls)
-              ((seq :)
-               ;; for an explicit sequence, just append to the list
-               (lp (append (cdar ls) (cdr ls)) n flags next))
-              ((w/case w/nocase w/utf8 w/noutf8)
-               (let* ((next (lp (cdr ls) n flags next))
-                      (flags ((if (memq (caar ls) '(w/case w/utf8))
-                                  flag-clear
-                                  flag-join)
-                              flags
-                              (if (memq (caar ls) '(w/case w/nocase))
-                                  ~case-insensitive?
-                                  ~utf8?))))
-                 (and next (lp (cdar ls) (new-state-number next) flags next))))
-              ((/ - & ~) 
-               (let ((ranges (sre->cset (car ls)
-                                        (flag-set? flags ~case-insensitive?))))
-                 (case (length ranges)
-                   ((1)
-                    (extend-state (lp (cdr ls) n flags next) (car ranges)))
-                   (else
-                    (let ((next (lp (cdr ls) n flags next)))
-                      (and
-                       next
-                       (lp (list (sre-alternate
-                                  (map (lambda (x) (if (pair? x)
-                                                  (list '/ (car x) (cdr x))
-                                                  x))
-                                       ranges)))
-                           (new-state-number next)
-                           (flag-clear flags ~case-insensitive?)
-                           next)))))))
-              ((or)
-               (let ((next (lp (cdr ls) n flags next)))
-                 (and
-                  next
-                  (if (null? (cdar ls))
-                      ;; empty (or) always fails
-                      `((,(new-state-number next)) ,@next)
-                      ;; compile both branches and insert epsilon
-                      ;; transitions to either
-                      (let* ((b (lp (list (sre-alternate (cddar ls)))
+           ((string? (car ls))
+            ;; process literal strings a char at a time
+            (let ((next (lp (cdr ls) n flags next)))
+              (and next
+                   (let lp2 ((i (- (string-length (car ls)) 1))
+                             (next next))
+                     (if (< i 0)
+                         next
+                         (lp2 (- i 1)
+                              (add-char-state! next (string-ref (car ls) i))))
+                     ))))
+           ((eq? 'epsilon (car ls))
+            ;; chars and epsilons go directly into the transition table
+            (let ((next (lp (cdr ls) n flags next)))
+              (and next
+                   (let ((new (add-state! (new-state-number next) '())))
+                     (nfa-add-epsilon! buf new next)
+                     new))))
+           ((char? (car ls))
+            (add-char-state! (lp (cdr ls) n flags next) (car ls)))
+           ((symbol? (car ls))
+            (let ((cell (assq (car ls) sre-named-definitions)))
+              (and cell
+                   (lp (cons (if (procedure? (cdr cell))
+                                 ((cdr cell))
+                                 (cdr cell))
+                             (cdr ls))
+                       n
+                       flags
+                       next))))
+           ((pair? (car ls))
+            (cond
+             ((string? (caar ls))
+              ;; enumerated character set
+              (lp (cons (sre-alternate (string->list (caar ls))) (cdr ls))
+                  n
+                  flags
+                  next))
+             (else
+              (case (caar ls)
+                ((seq :)
+                 ;; for an explicit sequence, just append to the list
+                 (lp (append (cdar ls) (cdr ls)) n flags next))
+                ((w/case w/nocase w/utf8 w/noutf8)
+                 (let* ((next (lp (cdr ls) n flags next))
+                        (flags ((if (memq (caar ls) '(w/case w/utf8))
+                                    flag-clear
+                                    flag-join)
+                                flags
+                                (if (memq (caar ls) '(w/case w/nocase))
+                                    ~case-insensitive?
+                                    ~utf8?))))
+                   (and next
+                        (lp (cdar ls) (new-state-number next) flags next))))
+                ((/ - & ~) 
+                 (let ((ranges
+                        (sre->cset (car ls)
+                                   (flag-set? flags ~case-insensitive?))))
+                   (case (length ranges)
+                     ((1)
+                      (extend-state! (lp (cdr ls) n flags next) (car ranges)))
+                     (else
+                      (let ((next (lp (cdr ls) n flags next)))
+                        (and
+                         next
+                         (lp (list (sre-alternate
+                                    (map (lambda (x) (if (pair? x)
+                                                    (list '/ (car x) (cdr x))
+                                                    x))
+                                         ranges)))
+                             (new-state-number next)
+                             (flag-clear flags ~case-insensitive?)
+                             next)))))))
+                ((or)
+                 (let ((next (lp (cdr ls) n flags next)))
+                   (and
+                    next
+                    (if (null? (cdar ls))
+                        ;; empty (or) always fails
+                        (add-state! (new-state-number next) '())
+                        ;; compile both branches and insert epsilon
+                        ;; transitions to either
+                        (let* ((b (lp (list (sre-alternate (cddar ls)))
+                                      (new-state-number next)
+                                      flags
+                                      next))
+                               (a (and b (lp (list (cadar ls))
+                                             (new-state-number b)
+                                             flags
+                                             next))))
+                          (and a
+                               (let ((c (add-state! (new-state-number a) '())))
+                                 (nfa-add-epsilon! buf c a)
+                                 (nfa-add-epsilon! buf c b)
+                                 c)))))))
+                ((?)
+                 (let ((next (lp (cdr ls) n flags next)))
+                   ;; insert an epsilon transition directly to next
+                   (and
+                    next
+                    (let ((a (lp (cdar ls) (new-state-number next) flags next)))
+                      (if a
+                          (nfa-add-epsilon! buf a next))
+                      a))))
+                ((+ *)
+                 (let ((next (lp (cdr ls) n flags next)))
+                   (and
+                    next
+                    (let* ((new (lp '(epsilon)
                                     (new-state-number next)
                                     flags
                                     next))
-                             (a (and b (lp (list (cadar ls))
-                                           (new-state-number b)
-                                           flags
-                                           next))))
-                        (and a
-                             `((,(new-state-number a)
-                                (epsilon . ,(caar a))
-                                (epsilon . ,(caar b)))
-                               ,@(take-up-to a next)
-                               ,@b)))))))
-              ((?)
-               (let ((next (lp (cdr ls) n flags next)))
-                 ;; insert an epsilon transition directly to next
-                 (and
-                  next
-                  (let ((a (lp (cdar ls) (new-state-number next) flags next)))
-                    (cond
-                     (a
-                      ;;`((,(caar a) (epsilon . ,(caar next)) ,@(cdar a))
-                      ;;  ,@(cdr a))
-                      (set-cdr! (car a) `((epsilon . ,(caar next)) ,@(cdar a)))
-                      a)
-                     (else
-                      #f))))))
-              ((+ *)
-               (let ((next (lp (cdr ls) n flags next)))
-                 (and
-                  next
-                  (let* ((new (lp '(epsilon)
-                                  (new-state-number next)
-                                  flags
-                                  next))
-                         (a (lp (cdar ls) (new-state-number new) flags new)))
-                    (and
-                     a
-                     (begin
-                       ;; for *, insert an epsilon transition as in ? above
-                       (if (eq? '* (caar ls))
-                           (set-cdr! (car a)
-                                     `((epsilon . ,(caar new)) ,@(cdar a))))
-                       ;; for both, insert a loop back to self
-                       (set-cdr! (car new)
-                                 `((epsilon . ,(caar a)) ,@(cdar new)))
-                       a))))))
-              ;; need to add these to the match extractor first,
-              ;; but they tend to generate large DFAs
-              ;;((=)
-              ;; (lp (append (vector->list
-              ;;              (make-vector (cadar ls)
-              ;;                           (sre-sequence (cddar ls))))
-              ;;             (cdr ls))
-              ;;     n flags next))
-              ;;((>=)
-              ;; (lp (append (vector->list
-              ;;              (make-vector (- (cadar ls) 1)
-              ;;                           (sre-sequence (cddar ls))))
-              ;;             (cons `(+ ,@(cddar ls)) (cdr ls)))
-              ;;     n flags next))
-              ;;((**)
-              ;; (lp (append (vector->list
-              ;;              (make-vector (cadar ls)
-              ;;                           (sre-sequence (cdddar ls))))
-              ;;             (map
-              ;;              (lambda (x) `(? ,x))
-              ;;              (vector->list
-              ;;               (make-vector (- (caddar ls) (cadar ls))
-              ;;                            (sre-sequence (cdddar ls)))))
-              ;;             (cdr ls))
-              ;;     n flags next))
-              (($ submatch => submatch-named)
-               ;; ignore submatches altogether
-               (lp (cons (sre-sequence (cdar ls)) (cdr ls)) n flags next))
-              (else
-               (cond
-                ((assq (caar ls) sre-named-definitions)
-                 => (lambda (cell)
-                      (if (procedure? (cdr cell))
-                          (lp (cons (apply (cdr cell) (cdar ls)) (cdr ls))
-                              n flags next)
-                          (error "non-procedure in op position" (caar ls)))))
-                (else #f)))))))
-         (else
-          #f)))))
-
-(define (sre->nfa sre . o)
-  (let ((nfa-ls (sre->nfa-list sre o)))
-    (and (pair? nfa-ls)
-         (let ((res (make-vector (+ 1 (caar nfa-ls)) '())))
-           (do ((ls nfa-ls (cdr ls)))
-               ((null? ls) res)
-             (vector-set! res (caar ls) (cdar ls)))))))
-
-(define (nfa-num-states nfa) (vector-length nfa))
-(define (nfa-start-state nfa) (- (vector-length nfa) 1))
-(define (nfa-get-state nfa i) (vector-ref nfa i))
+                           (a (lp (cdar ls) (new-state-number new) flags new)))
+                      (cond
+                       (a
+                        ;; for *, insert an epsilon transition as in ? above
+                        (if (eq? '* (caar ls))
+                            (nfa-add-epsilon! buf a new))
+                        ;; for both, insert a loop back to self
+                        (nfa-add-epsilon! buf new a)))
+                      a))))
+                ;; need to add these to the match extractor first,
+                ;; but they tend to generate large DFAs
+                ;;((=)
+                ;; (lp (append (vector->list
+                ;;              (make-vector (cadar ls)
+                ;;                           (sre-sequence (cddar ls))))
+                ;;             (cdr ls))
+                ;;     n flags next))
+                ;;((>=)
+                ;; (lp (append (vector->list
+                ;;              (make-vector (- (cadar ls) 1)
+                ;;                           (sre-sequence (cddar ls))))
+                ;;             (cons `(+ ,@(cddar ls)) (cdr ls)))
+                ;;     n flags next))
+                ;;((**)
+                ;; (lp (append (vector->list
+                ;;              (make-vector (cadar ls)
+                ;;                           (sre-sequence (cdddar ls))))
+                ;;             (map
+                ;;              (lambda (x) `(? ,x))
+                ;;              (vector->list
+                ;;               (make-vector (- (caddar ls) (cadar ls))
+                ;;                            (sre-sequence (cdddar ls)))))
+                ;;             (cdr ls))
+                ;;     n flags next))
+                (($ submatch => submatch-named)
+                 ;; ignore submatches altogether
+                 (lp (cons (sre-sequence (cdar ls)) (cdr ls)) n flags next))
+                (else
+                 (cond
+                  ((assq (caar ls) sre-named-definitions)
+                   => (lambda (cell)
+                        (if (procedure? (cdr cell))
+                            (lp (cons (apply (cdr cell) (cdar ls)) (cdr ls))
+                                n flags next)
+                            (error "non-procedure in op position" (caar ls)))))
+                  (else #f)))))))
+           (else
+            #f))))
+    (let ((len (lp (list sre) 1 init-flags 0)))
+      (and len
+           (let ((nfa (make-vector (* *nfa-num-fields* (+ len 1)))))
+             (do ((i (- (vector-length nfa) 1) (- i 1)))
+                 ((< i 0))
+               (vector-set! nfa i (vector-ref buf i)))
+             nfa)))))
 
 ;; We don't really want to use this, we use the closure compilation
 ;; below instead, but this is included for reference and testing the
@@ -2206,10 +2275,10 @@
 ;;              (cdr state)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; NFA multi-state representation
+;;; NFA multi-state representation
 
-;; (define (make-nfa-multi-state n)
-;;   (make-vector (quotient (+ n 23) 24) 0))
+;; (define (make-nfa-multi-state nfa)
+;;   (make-vector (quotient (+ (vector-length nfa) 23) 24) 0))
 
 ;; (define (reset-nfa-multi-state mst)
 ;;   (do ((i (- (vector-length mst) 1) (- i 1)))
@@ -2219,15 +2288,45 @@
 ;; (define (nfa-multi-state-contains? mst i)
 ;;   (let ((cell (quotient i 24))
 ;;         (bit (remainder i 24)))
-;;     (not (zero? (bit-ior (vector-ref mst cell) (bit-shl 1 bit))))))
+;;     (not (zero? (bit-and (vector-ref mst cell) (bit-shl 1 bit))))))
 
 ;; (define (nfa-multi-state-add! mst i)
 ;;   (let ((cell (quotient i 24))
 ;;         (bit (remainder i 24)))
 ;;     (vector-set! mst cell (bit-ior (vector-ref mst cell) (bit-shl 1 bit)))))
 
+;; (define (list->nfa-multi-state nfa ls)
+;;   (let ((res (make-nfa-multi-state nfa)))
+;;     (let lp ((ls ls))
+;;       (cond
+;;        ((null? ls)
+;;         res)
+;;        ((nfa-multi-state-contains? res (car ls))
+;;         (lp (cdr ls)))
+;;        (else
+;;         (nfa-multi-state-add! res (car ls))
+;;         (lp (append (map cdr
+;;                          (filter (lambda (trans) (eq? 'epsilon (car trans)))
+;;                                  (nfa-get-state-trans nfa (car ls))))
+;;                     (cdr ls))))))))
+
+;; (define (nfa-multi-state-fold mst kons knil)
+;;   (let ((limit (vector-length mst)))
+;;     (let lp1 ((i 0)
+;;               (acc knil))
+;;       (if (>= i limit)
+;;           acc
+;;           (let lp2 ((n (vector-ref mst i))
+;;                     (acc acc))
+;;             (if (zero? n)
+;;                 (lp1 (+ i 1) acc)
+;;                 (let* ((n2 (bit-and n (- n 1)))
+;;                        (n-tail (- n n2))
+;;                        (bit (+ (* i 24) (integer-log n-tail))))
+;;                   (lp2 n2 (kons bit acc)))))))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; NFA->DFA compilation
+;;; NFA->DFA compilation
 ;;
 ;; During processing, the DFA is a list of the form:
 ;;
@@ -2283,10 +2382,10 @@
       (if (null? ls)
           (map (lambda (x) (cons (car x) (nfa-closure nfa (cdr x))))
                res)
-          (let ((node (nfa-get-state nfa (car ls))))
+          (let ((node (nfa-get-state-trans nfa (car ls))))
             (lp node (cdr ls) res))))
-     ((eq? 'epsilon (caar trans))
-      (lp (cdr trans) ls res))
+;;      ((eq? 'epsilon (caar trans))
+;;       (lp (cdr trans) ls res))
      (else
       (lp (cdr trans) ls (nfa-join-transitions! res (car trans)))))))
 
@@ -2384,10 +2483,20 @@
          (and (char>? b-hi a-hi)
               (char-range (integer->char (+ (char->integer a-hi) 1)) b-hi))))))
 
+(define (nfa-cache-state-closure! nfa state)
+  (let ((cached (nfa-get-state-closure nfa state)))
+    (cond
+     ((pair? cached)
+      cached)
+     (else
+      (let ((res (nfa-state-closure-internal nfa state)))
+        (nfa-set-state-closure! nfa state res)
+        res)))))
+
 ;; The `closure' of a list of NFA states - all states that can be
 ;; reached from any of them using any number of epsilon transitions.
-(define (nfa-closure nfa states)
-  (let lp ((ls states)
+(define (nfa-state-closure-internal nfa state)
+  (let lp ((ls (list state))
            (res '()))
     (cond
      ((null? ls)
@@ -2395,11 +2504,20 @@
      ((memq (car ls) res)
       (lp (cdr ls) res))
      (else
-      (lp (append (map cdr
-                       (filter (lambda (trans) (eq? 'epsilon (car trans)))
-                               (nfa-get-state nfa (car ls))))
-                  (cdr ls))
+      (lp (append (nfa-get-epsilons nfa (car ls)) (cdr ls))
           (insert-sorted (car ls) res))))))
+
+(define (nfa-closure-internal nfa states)
+  (fold
+   (lambda (st res) (merge-sorted (nfa-cache-state-closure! nfa st) res))
+   '()
+   states))
+
+(define (nfa-closure nfa states)
+  (or (nfa-get-closure nfa states)
+      (let ((res (nfa-closure-internal nfa states)))
+        (nfa-add-closure! nfa states res)
+        res)))
 
 ;; insert an integer uniquely into a sorted list
 (define (insert-sorted n ls)
@@ -2413,7 +2531,18 @@
    (else
     (cons (car ls) (insert-sorted n (cdr ls))))))
 
+(define (merge-sorted a b)
+  (cond ((null? a) b)
+        ((null? b) a)
+        ((< (car a) (car b))
+         (cons (car a) (merge-sorted (cdr a) b)))
+        ((> (car a) (car b))
+         (cons (car b) (merge-sorted a (cdr b))))
+        (else (merge-sorted (cdr a) b))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Match Extraction
+;;
 ;; DFAs don't give us match information, so once we match and
 ;; determine the start and end, we need to recursively break the
 ;; problem into smaller DFAs to get each submatch.
@@ -2429,7 +2558,7 @@
        ((not (sre-has-submatches? sre))
         (if (not submatch-deps?)
             (lambda (cnk start i end j matches) #t)
-            (let ((dfa (nfa->dfa (sre->nfa sre))))
+            (let ((dfa (nfa->dfa (sre->nfa sre ~none))))
               (lambda (cnk start i end j matches)
                 (dfa-match/longest dfa cnk start i end j matches tmp)))))
        ((pair? sre)
@@ -2551,8 +2680,12 @@
         (error "unknown regexp" sre))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; closure compilation - we use this for non-regular expressions
-;; instead of an interpreted NFA matcher
+;;; Closure Compilation
+;;
+;; We use this for non-regular expressions instead of an interpreted
+;; NFA matcher.  We use backtracking anyway, but this gives us more
+;; freedom of implementation, allowing us to support patterns that
+;; can't be represented in the above NFA representation.
 
 (define (sre->procedure sre . o)
   (define names
@@ -3016,6 +3149,7 @@
           ))
      ((string? sre)
       (rec (sre-sequence (string->list sre)))
+;; XXXX reintroduce faster string matching on chunks
 ;;       (if (flag-set? flags ~case-insensitive?)
 ;;           (rec (sre-sequence (string->list sre)))
 ;;           (let ((len (string-length sre)))
@@ -3029,6 +3163,8 @@
       (error "unknown regexp" sre)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Character Sets
+;;
 ;; Simple character sets as lists of ranges, as used in the NFA/DFA
 ;; compilation.  This is not especially efficient, but is portable and
 ;; scalable for any range of character sets.
@@ -3201,7 +3337,7 @@
           (else (lp (cdr ls) (cset-union res (list (car ls))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; match and replace utilities (currently strings only)
+;;; Match and Replace Utilities
 
 (define (irregex-fold/fast irx kons knil str . o)
   (let* ((irx (irregex irx))
