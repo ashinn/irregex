@@ -55,6 +55,15 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Data Structures
 
+(cond-expand
+ (gambit
+  (declare (fixnum)
+           (inline)
+           (inlining-limit 700)
+           (standard-bindings)
+           (extended-bindings)))
+ (else))
+
 (define irregex-tag '*irregex-tag*)
 
 (define (make-irregex dfa dfa/search dfa/extract nfa flags
@@ -2061,13 +2070,13 @@
 ;; in descending numeric order, with state 0 being the unique
 ;; accepting state.
 (define (sre->nfa sre init-flags)
-  (let ((buf (make-vector (* *nfa-presize* 2) '())))
+  (let ((buf (make-vector (* *nfa-presize* *nfa-num-fields*) '())))
     ;; we loop over an implicit sequence list
     (define (lp ls n flags next)
       (define (new-state-number state)
         (max n (+ 1 state)))
       (define (add-state! n2 trans-ls)
-        (if (> (+ n2 *nfa-num-fields*) (vector-length buf))
+        (if (>= (* n2 *nfa-num-fields*) (vector-length buf))
             (let ((tmp (make-vector (* 2 (vector-length buf)) '())))
               (do ((i (- (vector-length buf) 1) (- i 1)))
                   ((< i 0))
