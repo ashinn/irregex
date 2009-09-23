@@ -15,7 +15,7 @@
 ;; force, -- the Baker Street irregulars."
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; Notes
+;;;; Notes
 ;;
 ;; This code should not require any porting - it should work out of
 ;; the box in any R[45]RS Scheme implementation.  Slight modifications
@@ -29,7 +29,7 @@
 ;; nice.
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; History
+;;;; History
 ;;
 ;;        2009/09/** - 0.8.0 pre-release
 ;; 0.7.5: 2009/08/31 - adding irregex-extract and irregex-split
@@ -53,7 +53,7 @@
 ;;   0.1: 2005/08/18 - simple NFA interpreter over abstract chunked strings
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; Data Structures
+;;;; Data Structures
 
 (define irregex-tag '*irregex-tag*)
 
@@ -236,7 +236,7 @@
                   (chunk-before? cnk next b))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; String Utilities
+;;;; String Utilities
 
 ;; Unicode version (skip surrogates)
 (define *all-chars*
@@ -318,7 +318,7 @@
     res))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; List Utilities
+;;;; List Utilities
 
 ;; like the one-arg IOTA case
 (define (zero-to n)
@@ -388,7 +388,7 @@
         (lp (cdr ls) (if (pred (car ls)) res (cons (car ls) res))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; Flags
+;;;; Flags
 
 (define (bit-shr n i)
   (quotient n (expt 2 i)))
@@ -436,7 +436,7 @@
 (define ~consumer? 2)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; Parsing PCRE Strings
+;;;; Parsing PCRE Strings
 
 (define ~save? 1)
 (define ~case-insensitive? 2)
@@ -1039,7 +1039,7 @@
         (go start '() '()))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; UTF-8 Utilities
+;;;; UTF-8 Utilities
 
 ;; Here are some hairy optimizations that need to be documented
 ;; better.  Thanks to these, we never do any utf8 processing once the
@@ -1317,7 +1317,7 @@
              sre)))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; Compilation
+;;;; Compilation
 
 (define (irregex x . o)
   (cond
@@ -1363,7 +1363,7 @@
         (make-irregex #f #f #f f flags submatches lens names))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; SRE Analysis
+;;;; SRE Analysis
 
 ;; returns #t if the sre can ever be empty
 (define (sre-empty? sre)
@@ -1576,7 +1576,7 @@
     sublens))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; SRE Manipulation
+;;;; SRE Manipulation
 
 ;; build a (seq ls ...) sre from a list
 (define (sre-sequence ls)
@@ -1664,7 +1664,7 @@
     sre)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; Basic Matching
+;;;; Basic Matching
 
 (define irregex-basic-string-chunker
   (make-irregex-chunker (lambda (x) #f)
@@ -1804,7 +1804,7 @@
              m))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; DFA Matching
+;;;; DFA Matching
 
 ;; inline these
 (define (dfa-init-state dfa)
@@ -1908,7 +1908,7 @@
                 #f))))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; Named Definitions
+;;;; Named Definitions
 
 (define sre-named-definitions
   `((any . ,*all-chars*)
@@ -2014,7 +2014,7 @@
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; SRE->NFA compilation
+;;;; SRE->NFA compilation
 ;;
 ;; An NFA state is a numbered node with a list of patter->number
 ;; transitions, where pattern is either a character, (lo . hi)
@@ -2280,7 +2280,7 @@
 ;;              (cdr state)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; NFA multi-state representation
+;;;; NFA multi-state representation
 
 ;; Cache closures in a simple hash-table keyed on the smallest state
 ;; (define (nfa-multi-state-hash nfa mst)
@@ -2410,7 +2410,7 @@
                   (lp2 n2 (kons bit acc)))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; NFA->DFA compilation
+;;;; NFA->DFA compilation
 ;;
 ;; During processing, the DFA is a list of the form:
 ;;
@@ -2445,7 +2445,6 @@
 ;; in order and convert the result to a vector for fast lookup.
 (define (dfa-renumber nfa dfa)
   (let* ((len (length dfa))
-         ;;(states (map cons (map car dfa) (zero-to (length dfa))))
          (states (make-vector (nfa-num-states nfa) '()))
          (res (make-vector len)))
     (define (renumber mst)
@@ -2617,7 +2616,7 @@
         res)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; Match Extraction
+;;;; Match Extraction
 ;;
 ;; DFAs don't give us match information, so once we match and
 ;; determine the start and end, we need to recursively break the
@@ -2756,7 +2755,7 @@
         (error "unknown regexp" sre))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; Closure Compilation
+;;;; Closure Compilation
 ;;
 ;; We use this for non-regular expressions instead of an interpreted
 ;; NFA matcher.  We use backtracking anyway, but this gives us more
@@ -3239,7 +3238,7 @@
       (error "unknown regexp" sre)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; Character Sets
+;;;; Character Sets
 ;;
 ;; Simple character sets as lists of ranges, as used in the NFA/DFA
 ;; compilation.  This is not especially efficient, but is portable and
@@ -3313,7 +3312,7 @@
             (rec (cdr cell))
             (error "not a valid sre char-set" sre)))))))
 
-;;;; another debugging utility
+;; another debugging utility
 ;; (define (cset->sre cset)
 ;;   (let lp ((ls cset) (chars '()) (ranges '()))
 ;;     (cond
@@ -3413,7 +3412,7 @@
           (else (lp (cdr ls) (cset-union res (list (car ls))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; Match and Replace Utilities
+;;;; Match and Replace Utilities
 
 (define (irregex-fold/fast irx kons knil str . o)
   (let* ((irx (irregex irx))
