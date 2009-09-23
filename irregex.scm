@@ -55,15 +55,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Data Structures
 
-;; (cond-expand
-;;  (gambit
-;;   (declare (fixnum)
-;;            (inline)
-;;            (inlining-limit 700)
-;;            (standard-bindings)
-;;            (extended-bindings)))
-;;  (else))
-
 (define irregex-tag '*irregex-tag*)
 
 (define (make-irregex dfa dfa/search dfa/extract nfa flags
@@ -2049,22 +2040,26 @@
 (define (nfa-set-epsilons! nfa i x)
   (vector-set! nfa (+ (* i *nfa-num-fields*) 1) x))
 (define (nfa-add-epsilon! nfa i x)
-  (nfa-set-epsilons! nfa i (insert-sorted x (nfa-get-epsilons nfa i))))
+  (let ((eps (nfa-get-epsilons nfa i)))
+    (if (not (memq x eps))
+        (nfa-set-epsilons! nfa i (cons x eps)))))
 
 (define (nfa-get-state-closure nfa i)
   (vector-ref nfa (+ (* i *nfa-num-fields*) 2)))
 (define (nfa-set-state-closure! nfa i x)
   (vector-set! nfa (+ (* i *nfa-num-fields*) 2) x))
 
-;; assumes states are represented as normalized lists of integers
-(define (nfa-get-closure nfa states)
-  (cond ((assoc (cdr states)
-                (vector-ref nfa (+ (* (car states) *nfa-num-fields*) 3)))
+(define (nfa-get-closure nfa mst)
+  (cond ((assoc mst
+                (vector-ref nfa (+ (* (nfa-multi-state-hash nfa mst)
+                                      *nfa-num-fields*)
+                                   (- *nfa-num-fields* 1))))
          => cdr)
         (else #f)))
-(define (nfa-add-closure! nfa states x)
-  (let ((i (+ (* (car states) *nfa-num-fields*) 3)))
-    (vector-set! nfa i (cons (cons (cdr states) x) (vector-ref nfa i)))))
+(define (nfa-add-closure! nfa mst x)
+  (let ((i (+ (* (nfa-multi-state-hash nfa mst) *nfa-num-fields*)
+              (- *nfa-num-fields* 1))))
+    (vector-set! nfa i (cons (cons mst x) (vector-ref nfa i)))))
 
 ;; Compile and return the vector of NFA states.  The start state will
 ;; be the last element of the vector, and all remaining states will be
@@ -2287,80 +2282,132 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; NFA multi-state representation
 
-(define (make-nfa-multi-state nfa)
-  '())
+;; Cache closures in a simple hash-table keyed on the smallest state
+;; (define (nfa-multi-state-hash nfa mst)
+;;   (car mst))
 
-(define (nfa-state->multi-state nfa state)
-  (list state))
-
-(define (nfa-multi-state-copy mst)
-  (map (lambda (x) x) mst))
-
-(define (list->nfa-multi-state nfa ls)
-  (nfa-multi-state-copy ls))
-
-(define (nfa-multi-state-contains? mst i)
-  (memq i mst))
-
-(define (nfa-multi-state-fold mst kons knil)
-  (fold kons knil mst))
-
-(define (nfa-multi-state-add! mst i)
-  (insert-sorted i mst))
-
-(define (nfa-multi-state-add mst i)
-  (insert-sorted i mst))
-
-(define (nfa-multi-state-union a b)
-  (merge-sorted a b))
+;; Original sorted list-based representation
 
 ;; (define (make-nfa-multi-state nfa)
-;;   (make-vector (quotient (+ (vector-length nfa) 23) 24) 0))
+;;   '())
 
-;; (define (reset-nfa-multi-state mst)
-;;   (do ((i (- (vector-length mst) 1) (- i 1)))
-;;       ((< i 0) mst)
-;;     (vector-set! mst i 0)))
+;; (define (nfa-state->multi-state nfa state)
+;;   (list state))
 
-;; (define (nfa-multi-state-contains? mst i)
-;;   (let ((cell (quotient i 24))
-;;         (bit (remainder i 24)))
-;;     (not (zero? (bit-and (vector-ref mst cell) (bit-shl 1 bit))))))
-
-;; (define (nfa-multi-state-add! mst i)
-;;   (let ((cell (quotient i 24))
-;;         (bit (remainder i 24)))
-;;     (vector-set! mst cell (bit-ior (vector-ref mst cell) (bit-shl 1 bit)))))
+;; (define (nfa-multi-state-copy mst)
+;;   (map (lambda (x) x) mst))
 
 ;; (define (list->nfa-multi-state nfa ls)
-;;   (let ((res (make-nfa-multi-state nfa)))
-;;     (let lp ((ls ls))
-;;       (cond
-;;        ((null? ls)
-;;         res)
-;;        ((nfa-multi-state-contains? res (car ls))
-;;         (lp (cdr ls)))
-;;        (else
-;;         (nfa-multi-state-add! res (car ls))
-;;         (lp (append (map cdr
-;;                          (filter (lambda (trans) (eq? 'epsilon (car trans)))
-;;                                  (nfa-get-state-trans nfa (car ls))))
-;;                     (cdr ls))))))))
+;;   (nfa-multi-state-copy ls))
+
+;; (define (nfa-multi-state-contains? mst i)
+;;   (memq i mst))
 
 ;; (define (nfa-multi-state-fold mst kons knil)
-;;   (let ((limit (vector-length mst)))
-;;     (let lp1 ((i 0)
-;;               (acc knil))
-;;       (if (>= i limit)
-;;           acc
-;;           (let lp2 ((n (vector-ref mst i))
-;;                     (acc acc))
-;;             (if (zero? n)
-;;                 (lp1 (+ i 1) acc)
-;;                 (let* ((n2 (bit-and n (- n 1)))
-;;                        (n-tail (- n n2))
-;;                        (bit (+ (* i 24) (integer-log n-tail))))
-;;                   (lp2 n2 (kons bit acc)))))))))
+;;   (fold kons knil mst))
+
+;; (define (nfa-multi-state-add! mst i)
+;;   (insert-sorted i mst))
+
+;; (define (nfa-multi-state-add mst i)
+;;   (insert-sorted i mst))
+
+;; (define (nfa-multi-state-union a b)
+;;   (merge-sorted a b))
+
+;; Sorted List Utilities
+
+;; (define (insert-sorted n ls)
+;;   (cond
+;;    ((null? ls)
+;;     (cons n '()))
+;;    ((<= n (car ls))
+;;     (if (= n (car ls))
+;;         ls
+;;         (cons n ls)))
+;;    (else
+;;     (cons (car ls) (insert-sorted n (cdr ls))))))
+
+;; (define (insert-sorted! n ls)
+;;   (cond
+;;    ((null? ls)
+;;     (cons n '()))
+;;    ((<= n (car ls))
+;;     (if (= n (car ls))
+;;         ls
+;;         (cons n ls)))
+;;    (else
+;;     (let lp ((head ls) (tail (cdr ls)))
+;;       (cond ((or (null? tail) (< n (car tail)))
+;;              (set-cdr! head (cons n tail)))
+;;             ((> n (car tail))
+;;              (lp tail (cdr tail)))))
+;;     ls)))
+
+;; (define (merge-sorted a b)
+;;   (cond ((null? a) b)
+;;         ((null? b) a)
+;;         ((< (car a) (car b))
+;;          (cons (car a) (merge-sorted (cdr a) b)))
+;;         ((> (car a) (car b))
+;;          (cons (car b) (merge-sorted a (cdr b))))
+;;         (else (merge-sorted (cdr a) b))))
+
+;; ========================================================= ;;
+
+;; Presized bit-vector based
+
+(define (nfa-multi-state-hash nfa mst)
+  (modulo (vector-ref mst 0) (nfa-num-states nfa)))
+
+(define (make-nfa-multi-state nfa)
+  (make-vector (quotient (+ (nfa-num-states nfa) 24 -1) 24) 0))
+
+(define (nfa-state->multi-state nfa state)
+  (nfa-multi-state-add! (make-nfa-multi-state nfa) state))
+
+(define (nfa-multi-state-copy mst)
+  (let ((res (make-vector (vector-length mst))))
+    (do ((i (- (vector-length mst) 1) (- i 1)))
+        ((< i 0) res)
+      (vector-set! res i (vector-ref mst i)))))
+
+(define (nfa-multi-state-contains? mst i)
+  (let ((cell (quotient i 24))
+        (bit (remainder i 24)))
+    (not (zero? (bit-and (vector-ref mst cell) (bit-shl 1 bit))))))
+
+(define (nfa-multi-state-add! mst i)
+  (let ((cell (quotient i 24))
+        (bit (remainder i 24)))
+    (vector-set! mst cell (bit-ior (vector-ref mst cell) (bit-shl 1 bit)))
+    mst))
+
+(define (nfa-multi-state-add mst i)
+  (nfa-multi-state-add! (nfa-multi-state-copy mst) i))
+
+(define (nfa-multi-state-union! a b)
+  (do ((i (- (vector-length a) 1) (- i 1)))
+      ((< i 0) a)
+    (vector-set! a i (bit-ior (vector-ref a i) (vector-ref b i)))))
+
+(define (nfa-multi-state-union a b)
+  (nfa-multi-state-union! (nfa-multi-state-copy a) b))
+
+(define (nfa-multi-state-fold mst kons knil)
+  (let ((limit (vector-length mst)))
+    (let lp1 ((i 0)
+              (acc knil))
+      (if (>= i limit)
+          acc
+          (let lp2 ((n (vector-ref mst i))
+                    (acc acc))
+            (if (zero? n)
+                (lp1 (+ i 1) acc)
+                (let* ((n2 (bit-and n (- n 1)))
+                       (n-tail (- n n2))
+                       (bit (+ (* i 24) (integer-log n-tail))))
+                  (lp2 n2 (kons bit acc)))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; NFA->DFA compilation
@@ -2381,7 +2428,7 @@
              (res '()))
       (cond
        ((null? ls)
-        (dfa-renumber (reverse res)))
+        (dfa-renumber nfa (reverse res)))
        ((assoc (car ls) res) ;; already seen this combination of states
         (lp (cdr ls) i res))
        ((and max-states (> i max-states)) ;; too many DFA states
@@ -2396,44 +2443,42 @@
 
 ;; When the conversion is complete we renumber the DFA sets-of-states
 ;; in order and convert the result to a vector for fast lookup.
-(define (dfa-renumber dfa)
-  (let ((states (map cons (map car dfa) (zero-to (length dfa)))))
-    (define (renumber state)
-      (cdr (assoc state states)))
-    (list->vector
-     (map
-      (lambda (node)
-        (cons (cadr node)
-              (map (lambda (x) (cons (car x) (renumber (cdr x))))
-                   (cddr node)))) 
-      dfa))))
+(define (dfa-renumber nfa dfa)
+  (let* ((len (length dfa))
+         ;;(states (map cons (map car dfa) (zero-to (length dfa))))
+         (states (make-vector (nfa-num-states nfa) '()))
+         (res (make-vector len)))
+    (define (renumber mst)
+      (cdr (assoc mst (vector-ref states (nfa-multi-state-hash nfa mst)))))
+    (let lp ((ls dfa) (i 0))
+      (cond ((pair? ls)
+             (let ((j (nfa-multi-state-hash nfa (caar ls))))
+               (vector-set! states j (cons (cons (caar ls) i)
+                                           (vector-ref states j))))
+             (lp (cdr ls) (+ i 1)))))
+    (let lp ((ls dfa) (i 0))
+      (cond ((pair? ls)
+             (for-each
+              (lambda (x) (set-cdr! x (renumber (cdr x))))
+              (cddar ls))
+             (vector-set! res i (cdar ls))
+             (lp (cdr ls) (+ i 1)))))
+    res))
 
 ;; Extract all distinct characters or ranges and the potential states
 ;; they can transition to from a given set of states.  Any ranges that
 ;; would overlap with distinct characters are split accordingly.
-;; (define (nfa-state-transitions nfa states)
-;;   (let lp ((trans '())   ;; list of (char . state) or ((char . char) . state)
-;;            (ls states)   ;; list of integers (remaining state numbers)
-;;            (res '()))    ;; (char state ...) or ((char . char) state ...)
-;;     (cond
-;;      ((null? trans)
-;;       (if (null? ls)
-;;           (map (lambda (x) (cons (car x) (nfa-closure nfa (cdr x)))) res)
-;;           (lp (nfa-get-state-trans nfa (car ls)) (cdr ls) res)))
-;;      (else
-;;       (lp (cdr trans) ls (nfa-join-transitions! res (car trans)))))))
-
 (define (nfa-state-transitions nfa states)
-  (map
-   (lambda (x) (cons (car x) (nfa-closure nfa (cdr x))))
-   (nfa-multi-state-fold
-    states
-    (lambda (st res)
-      (fold (lambda (trans res)
-              (nfa-join-transitions! nfa res (car trans) (cdr trans)))
-            res
-            (nfa-get-state-trans nfa st)))
-    '())))
+  (let ((res (nfa-multi-state-fold
+              states
+              (lambda (st res)
+                (fold (lambda (trans res)
+                        (nfa-join-transitions! nfa res (car trans) (cdr trans)))
+                      res
+                      (nfa-get-state-trans nfa st)))
+              '())))
+    (for-each (lambda (x) (set-cdr! x (nfa-closure nfa (cdr x)))) res)
+    res))
 
 (define (nfa-join-transitions! nfa existing elt state)
   (define (join! ls elt state)
@@ -2447,7 +2492,7 @@
        ((null? ls)
         ;; done, just cons this on to the original list
         (cons (cons elt (nfa-state->multi-state nfa state)) existing))
-       ((eqv? elt (caar ls))
+       ((eq? elt (caar ls))
         ;; add a new state to an existing char
         (set-cdr! (car ls) (nfa-multi-state-add! (cdar ls) state))
         existing)
@@ -2489,11 +2534,10 @@
           ;; overlapping ranges
           (apply
            (lambda (left1 left2 same right1 right2) ;; 5 regions
-             (let ((old-mst (cdar ls))
-                   (right1-copy (nfa-multi-state-copy (cdar ls)))
+             (let ((right1-copy (nfa-multi-state-copy (cdar ls)))
                    (right2-copy (nfa-multi-state-copy (cdar ls))))
                (set-car! (car ls) same)
-               (set-cdr! (car ls) (nfa-multi-state-add! old-mst state))
+               (set-cdr! (car ls) (nfa-multi-state-add! (cdar ls) state))
                (let* ((res (if right1
                                (cons (cons right1 right1-copy) existing)
                                existing))
@@ -2560,53 +2604,17 @@
           (nfa-multi-state-add! res (car ls)))))))
 
 (define (nfa-closure-internal nfa states)
-  (fold
-   (lambda (st res) (nfa-multi-state-union (nfa-cache-state-closure! nfa st) res))
-   '()
-   states))
+  (nfa-multi-state-fold
+   states
+   (lambda (st res)
+     (nfa-multi-state-union! res (nfa-cache-state-closure! nfa st)))
+   (make-nfa-multi-state nfa)))
 
 (define (nfa-closure nfa states)
   (or (nfa-get-closure nfa states)
       (let ((res (nfa-closure-internal nfa states)))
         (nfa-add-closure! nfa states res)
         res)))
-
-;; insert an integer uniquely into a sorted list
-(define (insert-sorted n ls)
-  (cond
-   ((null? ls)
-    (cons n '()))
-   ((<= n (car ls))
-    (if (= n (car ls))
-        ls
-        (cons n ls)))
-   (else
-    (cons (car ls) (insert-sorted n (cdr ls))))))
-
-(define (insert-sorted! n ls)
-  (cond
-   ((null? ls)
-    (cons n '()))
-   ((<= n (car ls))
-    (if (= n (car ls))
-        ls
-        (cons n ls)))
-   (else
-    (let lp ((head ls) (tail (cdr ls)))
-      (cond ((or (null? tail) (< n (car tail)))
-             (set-cdr! head (cons n tail)))
-            ((> n (car tail))
-             (lp tail (cdr tail)))))
-    ls)))
-
-(define (merge-sorted a b)
-  (cond ((null? a) b)
-        ((null? b) a)
-        ((< (car a) (car b))
-         (cons (car a) (merge-sorted (cdr a) b)))
-        ((> (car a) (car b))
-         (cons (car b) (merge-sorted a (cdr b))))
-        (else (merge-sorted (cdr a) b))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Match Extraction
