@@ -31,7 +31,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; History
 ;;
-;;        2009/09/** - 0.8.0 pre-release
+;;        2009/11/** - 0.8.0 pre-release
 ;; 0.7.5: 2009/08/31 - adding irregex-extract and irregex-split
 ;;                     *-fold copies match data (use *-fold/fast for speed)
 ;;                     irregex-opt now returns an SRE
@@ -1803,6 +1803,9 @@
                 (irregex-match-end-index m 0))
              m))))))
 
+(define (irregex-match? . args)
+  (and (apply irregex-match args) #t))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; DFA Matching
 
@@ -1977,6 +1980,12 @@
     ;; extended library patterns
     (integer . (seq (? (or #\+ #\-)) (+ numeric)))
     (real . (seq (+ numeric) (? #\. (+ numeric)) (? (or #\e #\E) integer)))
+    ;; slightly more lax than R5RS, allow ->foo, etc.
+    (symbol-initial . (or alpha ("!$%&*/:<=>?^_~")))
+    (symbol-subsequent . (or symbol-initial digit ("+-.@")))
+    (symbol . (or (seq symbol-initial (* symbol-subsequent))
+                  (seq ("+-") (? symbol-initial (* symbol-subsequent)))
+                  (seq ".." (* "."))))
     (string . (seq #\" (escape #\\ #\") #\"))
     (escape . ,(lambda (esc . o) `(* (or (~ ,esc ,@o) (seq ,esc any)))))
 
