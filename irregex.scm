@@ -1986,6 +1986,7 @@
     (symbol . (or (seq symbol-initial (* symbol-subsequent))
                   (seq ("+-") (? symbol-initial (* symbol-subsequent)))
                   (seq ".." (* "."))))
+    (sexp-space . (seq (* (* space) ";" (* nonl) newline) (+ space)))
     (string . (seq #\" (escape #\\ #\") #\"))
     (escape . ,(lambda (esc . o) `(* (or (~ ,esc ,@o) (seq ,esc any)))))
 
