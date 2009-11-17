@@ -464,6 +464,115 @@
 (define ~consumer? 2)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; Parsing Embedded SREs in PCRE Strings
+
+;; (define (with-read-from-string str i proc)
+;;   (define (port-size in)
+;;     (let lp ((i 0)) (if (eof-object? (read-char in)) i (lp (+ i 1)))))
+;;   (let* ((len (string-length str))
+;;          (tail-len (- len i))
+;;          (in (open-input-string (substring str i len)))
+;;          (sre (read in))
+;;          (unused-len (port-size in)))
+;;     (close-input-port in)
+;;     (proc sre (- tail-len unused-len))))
+
+(define close-token (list 'close))
+(define dot-token (string->symbol "."))
+
+(define (with-read-from-string str i proc)
+  (define end (string-length str))
+  (define (read i k)
+    (cond
+     ((>= i end) (error "unterminated embedded SRE" str))
+     (else
+      (case (string-ref str i)
+        ((#\()
+         (let lp ((i (+ i 1)) (ls '()))
+           (read
+            i
+            (lambda (x j)
+              (cond
+               ((eq? x close-token)
+                (k (reverse ls) j))
+               ((eq? x dot-token)
+                (if (null? ls)
+                    (error "bad dotted form" str)
+                    (read j (lambda (y j2)
+                              (read j2 (lambda (z j3)
+                                         (if (not (eq? z close-token))
+                                             (error "bad dotted form" str)
+                                             (k (append (reverse (cdr ls))
+                                                        (cons (car ls) y))
+                                                j3))))))))
+               (else
+                (lp j (cons x ls))))))))
+        ((#\))
+         (k close-token (+ i 1)))
+        ((#\;)
+         (let skip ((i (+ i 1)))
+           (if (or (>= i end) (eqv? #\newline (string-ref str i)))
+               (read (+ i 1) k)
+               (skip (+ i 1)))))
+        ((#\' #\`)
+         (read (+ i 1)
+           (lambda (sexp j)
+             (let ((q (if (eqv? #\' (string-ref str i)) 'quote 'quasiquote)))
+               (k (list q sexp) j)))))
+        ((#\,)
+         (let* ((at? (and (< (+ i 1) end) (eqv? #\@ (string-ref str (+ i 1)))))
+                (u (if at? 'uquote-splicing 'unquote))
+                (j (if at? (+ i 2) (+ i 1))))
+           (read j (lambda (sexp j) (k (list u sexp) j)))))
+        ((#\")
+         (let scan ((from (+ i 1)) (i (+ i 1)) (res '()))
+           (define (collect)
+             (if (= from i) res (cons (substring str from i) res)))
+           (if (>= i end)
+               (error "unterminated string in embeded SRE" str)
+               (case (string-ref str i)
+                 ((#\") (k (string-cat-reverse (collect)) (+ i 1)))
+                 ((#\\) (scan (+ i 1) (+ i 2) (collect)))
+                 (else (scan from (+ i 1) res))))))
+        ((#\#)
+         (case (string-ref str (+ i 1))
+           ((#\;)
+            (read (+ i 2) (lambda (sexp j) (read j k))))
+           ((#\\)
+            (read (+ i 2)
+              (lambda (sexp j)
+                (k (case sexp
+                     ((space) #\space)
+                     ((newline) #\newline)
+                     (else (let ((s (if (number? sexp)
+                                        (number->string sexp)
+                                        (symbol->string sexp))))
+                             (string-ref s 0))))
+                   j))))
+           ((#\t #\f)
+            (k (eqv? #\t (string-ref str (+ i 1))) (+ i 2)))
+           (else
+            (error "bad # syntax in simplified SRE" i))))
+        (else
+         (cond
+          ((char-whitespace? (string-ref str i))
+           (read (+ i 1) k))
+          (else ;; symbol/number
+           (let scan ((j (+ i 1)))
+             (cond
+              ((or (>= j end)
+                   (let ((c (string-ref str j)))
+                     (or (char-whitespace? c)
+                         (memv c '(#\; #\( #\) #\" #\# #\\)))))
+               (let ((str2 (substring str i j)))
+                 (k (or (string->number str2) (string->symbol str2)) j)))
+              (else (scan (+ j 1))))))))))))
+  (read i (lambda (res j)
+            (if (eq? res 'close-token)
+                (error "unexpected ')' in SRE" str j)
+                (proc res j)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Parsing PCRE Strings
 
 (define ~save? 1)
@@ -639,10 +748,18 @@
                (cond
                 ((>= (+ i 1) end)
                  (error "unterminated parenthesis in regexp" str))
-                ((not (eqv? #\? (string-ref str (+ i 1))))
+                ((not (memq (string-ref str (+ i 1)) '(#\? #\*)))
                  (lp (+ i 1) (+ i 1) (flag-join flags ~save?) '() (save)))
                 ((>= (+ i 2) end)
                  (error "unterminated parenthesis in regexp" str))
+                ((eqv? (string-ref str (+ i 1)) #\*)
+                 (if (eqv? #\' (string-ref str (+ i 2)))
+                     (with-read-from-string str (+ i 3)
+                       (lambda (sre j)
+                         (if (or (>= j end) (not (eqv? #\) (string-ref str j))))
+                             (error "unterminated (*'...) SRE escape" str)
+                             (lp (+ j 1) (+ j 1) flags (cons sre (collect)) st))))
+                     (error "bad regexp syntax: (*FOO) not supported" str)))
                 (else
                  (case (string-ref str (+ i 2))
                    ((#\#)
@@ -867,6 +984,10 @@
                               (lp2 (+ j 2)))))
                            (else
                             (lp2 (+ j 1)))))))
+                     ((#\')
+                      (with-read-from-string str (+ i 2)
+                       (lambda (sre j)
+                         (lp j j flags (cons sre (collect)) st))))
                      ;;((#\p)  ; XXXX unicode properties
                      ;; )
                      ;;((#\P)
