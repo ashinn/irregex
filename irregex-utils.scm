@@ -1,6 +1,6 @@
 ;;;; irregex-utils.scm
 ;;
-;; Copyright (c) 2009 Alex Shinn.  All rights reserved.
+;; Copyright (c) 2010 Alex Shinn.  All rights reserved.
 ;; BSD-style license: http://synthcode.com/license.txt
 
 (define rx-special-chars
@@ -17,11 +17,11 @@
   (list->string
    (let loop ((ls (string->list str)) (res '()))
      (if (null? ls)
-       (reverse res)
-       (let ((c (car ls)))
-         (if (string-scan-char rx-special-chars c)
-           (loop (cdr ls) (cons c (cons #\\ res)))
-           (loop (cdr ls) (cons c res))))))))
+         (reverse res)
+         (let ((c (car ls)))
+           (if (string-scan-char rx-special-chars c)
+               (loop (cdr ls) (cons c (cons #\\ res)))
+               (loop (cdr ls) (cons c res))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -68,72 +68,87 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (cset->string ls)
-  (with-output-to-string
-    (lambda ()
-      (let lp ((ls ls))
-        (unless (null? ls)
-          (cond
-            ((pair? (car ls))
-             (display (irregex-quote (string (caar ls))))
-             (display "-")
-             (display (irregex-quote (string (cdar ls)))))
-            (else (display (irregex-quote (string (car ls))))))
-          (lp (cdr ls)))))))
+  (let ((out (open-output-string)))
+    (let lp ((ls ls))
+      (cond
+       ((pair? ls)
+        (cond
+         ((pair? (car ls))
+          (display (irregex-quote (string (caar ls))) out)
+          (write-char #\- out)
+          (display (irregex-quote (string (cdar ls))) out))
+         (else (display (irregex-quote (string (car ls))) out)))
+        (lp (cdr ls)))))
+    (get-output-string out)))
 
 (define (sre->string obj)
-  (with-output-to-string
-    (lambda ()
-      (let lp ((x obj))
-        (cond
-          ((pair? x)
-           (case (car x)
-             ((: seq)
-              (cond
-                ((and (pair? (cddr x)) (pair? (cddr x)) (not (eq? x obj)))
-                 (display "(?:") (for-each lp (cdr x)) (display ")"))
-                (else (for-each lp (cdr x)))))
-             ((submatch) (display "(") (for-each lp (cdr x)) (display ")"))
-             ((or)
-              (display "(?:")
-              (lp (cadr x))
-              (for-each (lambda (x) (display "|") (lp x)) (cddr x))
-              (display ")"))
-             ((* + ?)
-              (cond
-                ((pair? (cddr x))
-                 (display "(?:") (for-each lp (cdr x)) (display ")"))
-                (else (lp (cadr x))))
-              (display (car x)))
-             ((not)
-              (cond
-                ((and (pair? (cadr x)) (eq? 'cset (caadr x)))
-                 (display "[^")
-                 (display (cset->string (cdadr x)))
-                 (display "]"))
-                (else (error "can't represent general 'not' in strings" x))))
-             ((cset)
-              (display "[")
-              (display (cset->string (cdr x)))
-              (display "]"))
-             ((w/case w/nocase)
-              (display "(?")
-              (if (eq? (car x) 'w/case) (display "-"))
-              (display ":")
-              (for-each lp (cdr x))
-              (display ")"))
-             (else
-              (if (string? (car x))
-                  (lp `(cset ,@(string->list (car x))))
-                  (error "unknown match operator" x)))))
-          ((symbol? x)
-           (case x
-             ((bos bol) (display "^"))
-             ((eos eol) (display "$"))
-             ((any nonl) (display "."))
-             (else (error "unknown match symbol" x))))
-          ((string? x)
-           (display (irregex-quote x)))
-          ((char? x)
-           (display (irregex-quote (string x))))
-          (else (error "unknown match pattern" x)))))))
+  (let ((out (open-output-string)))
+    (let lp ((x obj))
+      (cond
+       ((pair? x)
+        (case (car x)
+          ((: seq)
+           (cond
+            ((and (pair? (cddr x)) (pair? (cddr x)) (not (eq? x obj)))
+             (display "(?:" out) (for-each lp (cdr x)) (display ")" out))
+            (else (for-each lp (cdr x)))))
+          ((submatch)
+           (display "(" out) (for-each lp (cdr x)) (display ")" out))
+          ((submatch-named)
+           (display "(?<" out) (display (cadr x) out) (display ">" out)
+           (for-each lp (cddr x)) (display ")" out))
+          ((or)
+           (display "(?:" out)
+           (lp (cadr x))
+           (for-each (lambda (x) (display "|" out) (lp x)) (cddr x))
+           (display ")" out))
+          ((* + ? *? ??)
+           (cond
+            ((pair? (cddr x))
+             (display "(?:" out) (for-each lp (cdr x)) (display ")" out))
+            (else (lp (cadr x))))
+           (display (car x) out))
+          ((not)
+           (cond
+            ((and (pair? (cadr x)) (eq? 'cset (caadr x)))
+             (display "[^" out)
+             (display (cset->string (cdadr x)) out)
+             (display "]" out))
+            (else (error "can't represent general 'not' in strings" x))))
+          ((cset)
+           (display "[" out)
+           (display (cset->string (cdr x)) out)
+           (display "]" out))
+          ((- & / ~)
+           (cond
+            ((or (eq? #\~ (car x))
+                 (and (eq? '- (car x)) (pair? (cdr x)) (eq? 'any (cadr x))))
+             (display "[^" out)
+             (display (cset->string (if (eq? #\~ (car x)) (cdr x) (cddr x))) out)
+             (display "]" out))
+            (else
+             (lp `(cset ,@(sre->cset x))))))
+          ((w/case w/nocase)
+           (display "(?" out)
+           (if (eq? (car x) 'w/case) (display "-" out))
+           (display ":" out)
+           (for-each lp (cdr x))
+           (display ")" out))
+          (else
+           (if (string? (car x))
+               (lp `(cset ,@(string->list (car x))))
+               (error "unknown sre operator" x)))))
+       ((symbol? x)
+        (case x
+          ((bos bol) (display "^" out))
+          ((eos eol) (display "$" out))
+          ((any nonl) (display "." out))
+          (else (error "unknown sre symbol" x))))
+       ((string? x)
+        (display (irregex-quote x) out))
+       ((char? x)
+        (display (irregex-quote (string x)) out))
+       (else
+        (error "unknown sre pattern" x))))
+    (get-output-string out)))
 
