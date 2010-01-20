@@ -1,6 +1,6 @@
 ;;;; irregex.scm -- IrRegular Expressions
 ;;
-;; Copyright (c) 2005-2009 Alex Shinn.  All rights reserved.
+;; Copyright (c) 2005-2010 Alex Shinn.  All rights reserved.
 ;; BSD-style license: http://synthcode.com/license.txt
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -31,7 +31,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; History
 ;;
-;;        2009/11/** - 0.8.0 pre-release
+;; 0.8.0: 2010/01/20 - optimizing DFA compilation, adding SRE escapes
+;;                     inside PCREs, adding utility SREs
 ;; 0.7.5: 2009/08/31 - adding irregex-extract and irregex-split
 ;;                     *-fold copies match data (use *-fold/fast for speed)
 ;;                     irregex-opt now returns an SRE
@@ -748,7 +749,7 @@
                (cond
                 ((>= (+ i 1) end)
                  (error "unterminated parenthesis in regexp" str))
-                ((not (memq (string-ref str (+ i 1)) '(#\? #\*)))
+                ((not (memq (string-ref str (+ i 1)) '(#\? #\*))) ; normal case
                  (lp (+ i 1) (+ i 1) (flag-join flags ~save?) '() (save)))
                 ((>= (+ i 2) end)
                  (error "unterminated parenthesis in regexp" str))
@@ -760,7 +761,7 @@
                              (error "unterminated (*'...) SRE escape" str)
                              (lp (+ j 1) (+ j 1) flags (cons sre (collect)) st))))
                      (error "bad regexp syntax: (*FOO) not supported" str)))
-                (else
+                (else                   ;; (?...) case
                  (case (string-ref str (+ i 2))
                    ((#\#)
                     (let ((j (string-scan-char str #\) (+ i 3))))
@@ -894,8 +895,11 @@
                             (m (and (pair? (cdr s2))
                                     (string->number (cadr s2)))))
                        (cond
-                        ((or (not n) (and (pair? (cdr s2)) (not m)))
-                         (error "invalid {n} repetition syntax"))
+                        ((or (not n)
+                             (and (pair? (cdr s2))
+                                  (not (equal? "" (cadr s2)))
+                                  (not m)))
+                         (error "invalid {n} repetition syntax" s2))
                         ((null? (cdr s2))
                          (lp (+ j 1) (+ j 1) flags `((= ,n ,x) ,@tail) st))
                         (m
@@ -2223,10 +2227,11 @@
               (- *nfa-num-fields* 1))))
     (vector-set! nfa i (cons (cons mst x) (vector-ref nfa i)))))
 
-;; Compile and return the vector of NFA states.  The start state will
-;; be the last element of the vector, and all remaining states will be
-;; in descending numeric order, with state 0 being the unique
-;; accepting state.
+;; Compile and return the vector of NFA states (in groups of
+;; *nfa-num-fields* packed elements).  The start state will be the
+;; last element(s) of the vector, and all remaining states will be in
+;; descending numeric order, with state 0 being the unique accepting
+;; state.
 (define (sre->nfa sre init-flags)
   (let ((buf (make-vector (* *nfa-presize* *nfa-num-fields*) '())))
     ;; we loop over an implicit sequence list
@@ -2254,6 +2259,13 @@
       (if (null? ls)
           next
           (cond
+           ((or (eq? 'epsilon (car ls)) (equal? "" (car ls)))
+            ;; chars and epsilons go directly into the transition table
+            (let ((next (lp (cdr ls) n flags next)))
+              (and next
+                   (let ((new (add-state! (new-state-number next) '())))
+                     (nfa-add-epsilon! buf new next)
+                     new))))
            ((string? (car ls))
             ;; process literal strings a char at a time
             (let ((next (lp (cdr ls) n flags next)))
@@ -2265,13 +2277,6 @@
                          (lp2 (- i 1)
                               (add-char-state! next (string-ref (car ls) i))))
                      ))))
-           ((eq? 'epsilon (car ls))
-            ;; chars and epsilons go directly into the transition table
-            (let ((next (lp (cdr ls) n flags next)))
-              (and next
-                   (let ((new (add-state! (new-state-number next) '())))
-                     (nfa-add-epsilon! buf new next)
-                     new))))
            ((char? (car ls))
             (add-char-state! (lp (cdr ls) n flags next) (car ls)))
            ((symbol? (car ls))
@@ -2321,8 +2326,8 @@
                          next
                          (lp (list (sre-alternate
                                     (map (lambda (x) (if (pair? x)
-                                                    (list '/ (car x) (cdr x))
-                                                    x))
+                                                     (list '/ (car x) (cdr x))
+                                                     x))
                                          ranges)))
                              (new-state-number next)
                              (flag-clear flags ~case-insensitive?)
@@ -2340,10 +2345,11 @@
                                       (new-state-number next)
                                       flags
                                       next))
-                               (a (and b (lp (list (cadar ls))
-                                             (new-state-number b)
-                                             flags
-                                             next))))
+                               (a (and b
+                                       (lp (list (cadar ls))
+                                           (new-state-number (max b next))
+                                           flags
+                                           next))))
                           (and a
                                (let ((c (add-state! (new-state-number a) '())))
                                  (nfa-add-epsilon! buf c a)
@@ -3116,7 +3122,8 @@
                         (len (string-length prev))
                         (src2 (list prev 0 len)))
                    (if ((if (eq? (car sre) 'look-behind) (lambda (x) x) not)
-                        (check cnk src2 src2 prev 0 len matches (lambda () #f)))
+                        (check irregex-basic-string-chunker
+                               (cons src2 0) src2 prev 0 len matches (lambda () #f)))
                        (next cnk init src str i end matches fail)
                        (fail))))))
             ((atomic)
@@ -3699,6 +3706,8 @@
   (apply irregex-fold/fast
          irx
          (lambda (i m a) (cons (irregex-match-substring m) a))
+         '()
+         str
          (lambda (i a) (reverse a))
          o))
 
@@ -3712,6 +3721,8 @@
        (if (= i (%irregex-match-start-index m 0))
            a
            (cons (substring str i (%irregex-match-start-index m 0)) a)))
+     '()
+     str
      (lambda (i a)
        (reverse (if (= i end) a (cons (substring str i end) a))))
      start

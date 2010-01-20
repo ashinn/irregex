@@ -30,13 +30,13 @@
           (else #f))))
 
 (define (rxmatch-after m . o)
-  (substring (car (irregex-match-start-source m 0))
+  (substring (car (irregex-match-start-chunk m 0))
              (irregex-match-end-index
               m
               (irregex-match-index m (if (pair? o) (car o) 0)))))
 
 (define (rxmatch-before m . o)
-  (substring (car (irregex-match-start-source m 0))
+  (substring (car (irregex-match-start-chunk m 0))
              0
              (irregex-match-start-index
               m

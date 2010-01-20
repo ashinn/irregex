@@ -34,8 +34,7 @@ irregex.html: irregex-base.html
 doc: irregex.html
 
 test:
-	csi -script test-irregex.scm
-	csi -script test-irregex-scsch.scm
+	csi -script test-all.scm
 
 clean:
 	rm -f *~ */*~ *.so

@@ -222,6 +222,23 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(test-group "beginning/end of chunks"
+  (test-assert
+      (irregex-search/chunked '(: bos "foo") rope-chunker '((" foo" 0 4)) 1))
+  (test-assert
+      (irregex-search/chunked '(: bos "foo") rope-chunker '(("  foo" 1 5)) 2))
+  (test-assert
+      (irregex-search/chunked '(: bos "foo" eos) rope-chunker '((" foo" 1 4)) 1))
+  (test-assert
+      (irregex-search/chunked '(: bos "foo" eos) rope-chunker '(("  foo" 2 5)) 2))
+  (test-assert
+      (irregex-search/chunked '(: bos "foo" eos) rope-chunker '((" foo" 0 4)) 1))
+  (test-assert
+      (irregex-search/chunked '(: bos "foo" eos) rope-chunker '(("  foo" 1 5)) 2))
+  )
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (test-group "API"
   (test-assert (irregex? (irregex "a.*b")))
   (test-assert (irregex? (irregex '(: "a" (* any) "b"))))

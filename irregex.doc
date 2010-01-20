@@ -8,7 +8,7 @@
   (display "</style>\n"))
 
 \flushright{\urlh{http://synthcode.com/}{Alex Shinn}}
-\flushright{\urlh{http://synthcode.com/scheme/irregex/irregex-0.7.5.tar.gz}{Download Version 0.7.5}}
+\flushright{\urlh{http://synthcode.com/scheme/irregex/irregex-0.8.0.tar.gz}{Download Version 0.8.0}}
 
 \eval(display "<br /><br />\n\n<blockquote>")
 
@@ -558,6 +558,7 @@ The current patterns provided are:
   integer                        ; an integer
   real                           ; a real number (including scientific)
   string                         ; a "quoted" string
+  symbol                         ; an R5RS Scheme symbol
   ipv4-address                   ; a numeric decimal ipv4 address
   ipv6-address                   ; a numeric hexadecimal ipv6 address
   domain                         ; a domain name
@@ -594,6 +595,20 @@ zero-width assertions, conditional patterns, etc.
 
 In addition, \< and \> act as beginning-of-word and end-of-word marks,
 respectively, as in Emacs regular expressions.
+
+Also, two escapes are provided to embed SRE patterns inside PCRE
+strings, "\'<sre>" and "(*'<sre>)".  For example, to match a
+comma-delimited list of integers you could use
+
+  "\\'integer(,\\'integer)*"
+
+and to match a URL in angle brackets you could use
+
+  "<('*http-url)>"
+
+Note in the second example the enclosing "('*...)" syntax is needed
+because the Scheme reader would consider the closing ">" as part of
+the SRE symbol.
 
 The following chart gives a quick reference from PCRE form to the SRE
 equivalent:
