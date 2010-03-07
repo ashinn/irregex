@@ -2406,9 +2406,11 @@
                 ;;                            (sre-sequence (cdddar ls)))))
                 ;;             (cdr ls))
                 ;;     n flags next))
-                (($ submatch => submatch-named)
                  ;; ignore submatches altogether
+                (($ submatch)
                  (lp (cons (sre-sequence (cdar ls)) (cdr ls)) n flags next))
+                ((=> submatch-named)
+                 (lp (cons (sre-sequence (cddar ls)) (cdr ls)) n flags next))
                 (else
                  (cond
                   ((assq (caar ls) sre-named-definitions)
@@ -2898,9 +2900,13 @@
              (lambda (cnk start i end j matches)
                (match-once cnk start i end j matches)
                #t)))
-          (($ submatch)
+          (($ submatch => submatch-named)
            (let ((match-one
-                  (lp (sre-sequence (cdr sre)) (+ n 1) #t))
+                  (lp (sre-sequence (if (memq (car sre) '($ submatch))
+                                        (cdr sre)
+                                        (cddr sre)))
+                      (+ n 1)
+                      #t))
                  (start-src-offset (+ 3 (* n 4)))
                  (start-index-offset (+ 4 (* n 4)))
                  (end-src-offset (+ 5 (* n 4)))
