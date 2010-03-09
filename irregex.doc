@@ -8,7 +8,7 @@
   (display "</style>\n"))
 
 \flushright{\urlh{http://synthcode.com/}{Alex Shinn}}
-\flushright{\urlh{http://synthcode.com/scheme/irregex/irregex-0.8.0.tar.gz}{Download Version 0.8.0}}
+\flushright{\urlh{http://synthcode.com/scheme/irregex/irregex-0.8.1.tar.gz}{Download Version 0.8.1}}
 
 \eval(display "<br /><br />\n\n<blockquote>")
 
@@ -760,15 +760,19 @@ possible.
 
 \section{Roadmap}
 
+  0.6   - full PCRE support
+
+  0.7   - chunked string API
+
   0.8   - utilities and API finalization
 
-  0.9   - (real) benchmarks and performance enhancements
+  0.9   - refactoring, implementation-specific performance enhancements
 
   1.0   - cleanup and better documentation
 
 \section{License}
 
-Copyright (c) 2005-2009 Alex Shinn
+Copyright (c) 2005-2010 Alex Shinn
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
