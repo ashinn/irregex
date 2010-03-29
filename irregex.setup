@@ -1,0 +1,14 @@
+(define has-exports? (string>=? (chicken-version) "2.310"))
+
+(compile irregex.scm -s -O2 -f -inline -lambda-lift -disable-interrupts ;-d0
+         -prologue irregex-chicken.scm
+         ,@(if has-exports?
+               '(-check-imports -emit-exports irregex.exports)
+               '())
+         -o irregex.so)
+(install-extension
+ 'irregex
+ '("irregex.so")
+ `((version 0.7.0)
+   (documentation "irregex.html")
+   ,@(if has-exports? `((exports "irregex.exports")) '())))
