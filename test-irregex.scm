@@ -283,5 +283,24 @@
        (lambda (src i s) (reverse s))))
   )
 
+
+(define (extract name irx str)
+  (irregex-match-substring (irregex-match irx str) name))
+
+(test-group "named submatches"
+  (test "matching alternative is used"
+        "first" (extract 'sub `(or (submatch-named sub "first")
+                                   (submatch-named sub "second"))
+                         "first"))
+  (test "matching alternative is used (second match)"
+        "second" (extract 'sub `(or (submatch-named sub "first")
+                                    (submatch-named sub "second"))
+                         "second"))
+  (test "last match is used with multiple matches for a name"
+        "second" (extract 'sub `(seq (submatch-named sub "first")
+                                     space
+                                     (submatch-named sub "second"))
+                         "first second")))
+
 (test-end)
 

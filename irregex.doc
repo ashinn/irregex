@@ -170,6 +170,22 @@ Examples:
 Returns \q{#t} iff the object is a successful match result from
 \q{irregex-search} or \q{irregex-match}.
 
+\subsubsection*{(irregex-num-submatches <irx>)}
+\subsubsection*{(irregex-match-num-submatches <match>)}
+
+Returns the number of numbered submatches that are defined in the
+irregex or match object.
+
+\subsubsection*{(irregex-names <irx>)}
+\subsubsection*{(irregex-match-names <match>)}
+
+Returns an association list of named submatches that are defined in
+the irregex or match object.  The \q{car} of each item in this list is
+the name of a submatch, the \q{cdr} of each item is the numerical
+submatch corresponding to this name.  If a named submatch occurs
+multiple times in the irregex, it will also occur multiple times in
+this list.
+
 \subsubsection*{(irregex-match-substring <match> [<index-or-name>])}
 \subsubsection*{(irregex-match-start-index <match> <index-or-name>)}
 \subsubsection*{(irregex-match-end-index <match> <index-or-name>)}
