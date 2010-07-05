@@ -155,9 +155,14 @@
 
 (define (irregex-match-index m opt)
   (if (pair? opt)
-      (cond ((number? (car opt)) (car opt))
-            ((assq (car opt) (irregex-match-names m)) => cdr)
-            (else (error "unknown match name" (car opt))))
+      (if (number? (car opt))
+          (car opt)
+	  (let lp ((ls (irregex-match-names m)))
+	    (cond ((null? ls) (error "unknown match name" (car opt)))
+		  ((and (eq? (car opt) (caar ls))
+			(%irregex-match-start-chunk m (cdar ls)))
+		   (cdar ls))
+		  (else (lp (cdr ls))))))
       0))
 
 (define (%irregex-match-valid-index? m n)
