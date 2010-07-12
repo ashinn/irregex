@@ -1,0 +1,27 @@
+syntax: glob
+*.orig
+*.rej
+*~
+*.c
+*.o
+*.so
+*.aux
+*.log
+*.lof
+*.lot
+*.pdf
+*.elc
+*.err
+*.exports
+PROFILE.*
+*.tar.bz2
+*.tar.gz
+*.tgz
+.Z-*.scm
+*cl-ppcre*
+regex-dna*
+regexdna*
+
+syntax: regexp
+.*\#.*\#$
+

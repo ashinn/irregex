@@ -1,0 +1,10 @@
+;;; irregex.meta -*- Hen -*-
+
+((egg "irrege.egg")
+ (synopsis "IrRegular Expressions")
+ (license "BSD")
+ (category io)
+ (author "Alex Shinn")
+ (files "irregex.setup" "irregex.html"
+        "irregex.scm" "irregex-chicken.scm"
+        ))
