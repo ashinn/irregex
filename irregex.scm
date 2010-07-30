@@ -31,6 +31,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; History
 ;;
+;; 0.8.2: 2010/07/30 - (...)? submatch extraction fix and alternate
+;;                     named submatches from Peter Bex
 ;; 0.8.1: 2010/03/09 - backtracking irregex-match fix and other small fixes
 ;; 0.8.0: 2010/01/20 - optimizing DFA compilation, adding SRE escapes
 ;;                     inside PCREs, adding utility SREs
@@ -2923,8 +2925,13 @@
           ((?)
            (let ((match-once (lp (sre-sequence (cdr sre)) n #t)))
              (lambda (cnk start i end j matches)
-               (match-once cnk start i end j matches)
-               #t)))
+               (cond
+		((match-once cnk start i end j matches)
+		 #t)
+		(else
+		 (vector-set! matches tmp-end-src-offset start)
+		 (vector-set! matches tmp-end-index-offset i)
+		 #t)))))
           (($ submatch => submatch-named)
            (let ((match-one
                   (lp (sre-sequence (if (memq (car sre) '($ submatch))
