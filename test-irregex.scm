@@ -258,6 +258,18 @@
   (test 2 (irregex-match-num-submatches (irregex-search "(a(.*))b" "axxxb")))
   (test 2 (irregex-match-num-submatches (irregex-search "a(.*)(b)" "axxxb")))
   (test 10 (irregex-match-num-submatches (irregex-search "((((((((((a))))))))))" "a")))
+  (test-assert
+   (irregex-match-valid-index? (irregex-search "a.*b" "axxxb") 0))
+  (test-assert
+   (not (irregex-match-valid-index? (irregex-search "a.*b" "axxxb") 1)))
+  (test-assert
+   (irregex-match-valid-index? (irregex-search "a(.*)(b)" "axxxb") 0))
+  (test-assert
+   (irregex-match-valid-index? (irregex-search "a(.*)(b)" "axxxb") 1))
+  (test-assert
+   (irregex-match-valid-index? (irregex-search "a(.*)(b)" "axxxb") 2))
+  (test-assert
+   (not (irregex-match-valid-index? (irregex-search "a(.*)(b)" "axxxb") 3)))
   )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -285,20 +297,35 @@
 
 (define (extract name irx str)
   (irregex-match-substring (irregex-match irx str) name))
+(define (valid? name irx str)
+  (irregex-match-valid-index? (irregex-match irx str) name))
 
 (test-group "named submatches"
   (test "matching submatch is seen and extracted"
         "first" (extract 'first `(or (submatch-named first "first")
                                      (submatch-named second "second"))
                          "first"))
+  (test-assert "matching submatch index is valid"
+               (valid? 'first `(or (submatch-named first "first")
+                                   (submatch-named second "second"))
+                       "first"))
   (test "nonmatching submatch is known but returns false"
-        #f (extract 'second `(or (submatch-named first "first")
-                                 (submatch-named second "second"))
-                    "first"))
+        #f
+        (extract 'second `(or (submatch-named first "first")
+                              (submatch-named second "second"))
+                 "first"))
+  (test-assert "nonmatching submatch index is valid"
+               (valid? 'second `(or (submatch-named first "first")
+                                    (submatch-named second "second"))
+                       "first"))
   (test-error "nonexisting submatch is unknown and raises an error"
               (extract 'third `(or (submatch-named first "first")
                                    (submatch-named second "second"))
                        "first"))
+  (test-assert "nonexisting submatch index is invalid"
+               (not (valid? 'third `(or (submatch-named first "first")
+                                         (submatch-named second "second"))
+                            "first")))
   (test "matching alternative is used"
         "first" (extract 'sub `(or (submatch-named sub "first")
                                    (submatch-named sub "second"))

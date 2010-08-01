@@ -186,9 +186,10 @@ submatch corresponding to this name.  If a named submatch occurs
 multiple times in the irregex, it will also occur multiple times in
 this list.
 
-\subsubsection*{(irregex-match-valid-index? <match> <index>)}
+\subsubsection*{(irregex-match-valid-index? <match> <index-or-name>)}
 
-Returns \q{#t} iff the \q{index} is defined in the \q{match} object.
+Returns \q{#t} iff the \q{index-or-name} named submatch or index is
+defined in the \q{match} object.
 
 \subsubsection*{(irregex-match-substring <match> [<index-or-name>])}
 \subsubsection*{(irregex-match-start-index <match> <index-or-name>)}
