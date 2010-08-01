@@ -270,6 +270,8 @@
    (irregex-match-valid-index? (irregex-search "a(.*)(b)" "axxxb") 2))
   (test-assert
    (not (irregex-match-valid-index? (irregex-search "a(.*)(b)" "axxxb") 3)))
+  (test 1 (irregex-match-start-index (irregex-search "a(.*)(b)" "axxxb") 1))
+  (test 4 (irregex-match-end-index (irregex-search "a(.*)(b)" "axxxb") 1))
   )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -299,6 +301,10 @@
   (irregex-match-substring (irregex-match irx str) name))
 (define (valid? name irx str)
   (irregex-match-valid-index? (irregex-match irx str) name))
+(define (start-idx name irx str)
+  (irregex-match-start-index (irregex-match irx str) name))
+(define (end-idx name irx str)
+  (irregex-match-end-index (irregex-match irx str) name))
 
 (test-group "named submatches"
   (test "matching submatch is seen and extracted"
@@ -338,7 +344,15 @@
         "second" (extract 'sub `(seq (submatch-named sub "first")
                                      space
                                      (submatch-named sub "second"))
-                         "first second")))
+                         "first second"))
+  (test "submatch start"
+        1 (start-idx 'xs `(seq "a" (submatch-named xs (+ "x")) "b") "axxxb"))
+  (test-error "unknown submatch start"
+              (start-idx 'xs `(seq "a" (submatch-named ys (+ "x")) "b") "axxxb"))
+  (test "submatch end"
+        4 (end-idx 'xs `(seq "a" (submatch-named xs (+ "x")) "b") "axxxb"))
+  (test-error "unknown submatch start"
+              (end-idx 'xs `(seq "a" (submatch-named ys (+ "x")) "b") "axxxb")))
 
 (test-end)
 

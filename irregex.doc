@@ -192,8 +192,8 @@ Returns \q{#t} iff the \q{index-or-name} named submatch or index is
 defined in the \q{match} object.
 
 \subsubsection*{(irregex-match-substring <match> [<index-or-name>])}
-\subsubsection*{(irregex-match-start-index <match> <index-or-name>)}
-\subsubsection*{(irregex-match-end-index <match> <index-or-name>)}
+\subsubsection*{(irregex-match-start-index <match> [<index-or-name>])}
+\subsubsection*{(irregex-match-end-index <match> [<index-or-name>])}
 
 Fetches the matched substring (or its start or end offset) at the
 given submatch index, or named submatch.  The entire match is index 0,
