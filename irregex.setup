@@ -1,0 +1,9 @@
+
+(compile irregex-chicken.scm -s -O3 -f -inline -lambda-lift -disable-interrupts ;-d0
+         -j irregex -o irregex.so)
+(compile irregex.import.scm -s -Os -d0)
+(install-extension
+ 'irregex
+ '("irregex.so")
+ `((version 0.8.2)
+   (documentation "irregex.html")))

@@ -1,0 +1,26 @@
+# These try to test a wide variety of regular expressions which will
+# give very different performance when run on DFA matches,
+# non-backtracking NFA matchers, and backtracking matchers.  The
+# Boyer-Moore tests also heuristic matchers, such as CL-PPCRE.
+#
+# Not checked are multiple backreference patterns (which are NP-hard
+# and thus presumably require exponential time).
+#
+# We still need benchmarks for various special patterns such as
+# bos/eos to test how clever IrRegex is about compiling DFAs.
+#
+# Memory usage is not yet measured.
+#
+# Column format:
+#
+# name	pattern	string	prefix	compile-repitions	search-repetitions
+
+char literal	a	a	xxxxxxxxxx	1000	10000
+string literal	abccb	abccb	xxxxxxxxxx	1000	10000
+ci string literal	(?i:abccb)	aBCcB	xxxxxxxxxx	1000	10000
+best-case boyer-moore	abcdefghijklmnopq	abcdefghijklmnopq	xxxxxxxxxx	1000	10000
+worst-case boyer-moore	abbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb	abbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb	bbbbbbbbbb	1000	10000
+alternation	(?:asm|break|case|catch|const_cast|continue|default|delete|do|dynamic_cast|else|explicit|export|false|for|friend|goto|if|mutable|namespace|new|operator|private|protected|public|register|reinterpret_cast|return|sizeof|static_cast|switch|template|this|throw|true|try|typedef|typeid|typename|using|virtual|while)	virtual	aeiouaeiou	1	10000
+backtracker	a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	x	100	100
+expontential dfa	a[ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab]	abbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb	b	1	100
+#backtracker + expontential dfa	a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa[ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab]	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbb	b	1	100
