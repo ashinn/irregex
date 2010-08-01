@@ -10,6 +10,7 @@
   irregex-match-start-chunk irregex-match-start-index
   irregex-match-end-chunk irregex-match-end-index
   irregex-match-num-submatches
+  irregex-match-valid-index?
   irregex-fold irregex-replace irregex-replace/all
   irregex-dfa irregex-dfa/search irregex-dfa/extract
   irregex-nfa irregex-flags irregex-lengths irregex-names
