@@ -171,14 +171,14 @@
       0))
 
 (define (%irregex-match-valid-index? m n)
-  (and (< (+ 3 (* n 4)) (vector-length m))
-       (vector-ref m (+ 4 (* n 4)))))
+  (if (integer? n)
+      (and (< (+ 3 (* n 4)) (vector-length m))
+           (vector-ref m (+ 4 (* n 4))))
+      (and (assq n (irregex-match-names m)) #t)))
 
 (define (irregex-match-valid-index? m n)
   (if (not (irregex-match-data? m))
       (error "irregex-match-valid-index?: not match data" m))
-  (if (not (integer? n))
-      (error "irregex-match-valid-index?: not an integer" n))
   (%irregex-match-valid-index? m n))
 
 (define (irregex-match-substring m . opt)
