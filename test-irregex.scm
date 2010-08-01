@@ -283,11 +283,22 @@
        (lambda (src i s) (reverse s))))
   )
 
-
 (define (extract name irx str)
   (irregex-match-substring (irregex-match irx str) name))
 
 (test-group "named submatches"
+  (test "matching submatch is seen and extracted"
+        "first" (extract 'first `(or (submatch-named first "first")
+                                     (submatch-named second "second"))
+                         "first"))
+  (test "nonmatching submatch is known but returns false"
+        #f (extract 'second `(or (submatch-named first "first")
+                                 (submatch-named second "second"))
+                    "first"))
+  (test-error "nonexisting submatch is unknown and raises an error"
+              (extract 'third `(or (submatch-named first "first")
+                                   (submatch-named second "second"))
+                       "first"))
   (test "matching alternative is used"
         "first" (extract 'sub `(or (submatch-named sub "first")
                                    (submatch-named sub "second"))
