@@ -31,8 +31,13 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; History
 ;;
-;; 0.8.2: 2010/07/30 - (...)? submatch extraction fix and alternate
+;; 0.8.2: 2010/08/02 - (...)? submatch extraction fix and alternate
 ;;                     named submatches from Peter Bex
+;;                     Added irregex-match-valid-index? to export list and
+;;                     made it accept named submatches.  The procedures
+;;                     irregex-match-{start,end}-{index,chunk} now also
+;;                     accept named submatches, with the index argument
+;;                     made optional.
 ;; 0.8.1: 2010/03/09 - backtracking irregex-match fix and other small fixes
 ;; 0.8.0: 2010/01/20 - optimizing DFA compilation, adding SRE escapes
 ;;                     inside PCREs, adding utility SREs
