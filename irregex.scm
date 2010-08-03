@@ -31,13 +31,14 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; History
 ;;
-;; 0.8.2: 2010/08/02 - (...)? submatch extraction fix and alternate
+;; 0.8.2: 2010/08/03 - (...)? submatch extraction fix and alternate
 ;;                     named submatches from Peter Bex
-;;                     Added irregex-match-valid-index? to export list and
-;;                     made it accept named submatches.  The procedures
+;;                     Added irregex-match-valid-index? to export list
+;;                     and made it accept named submatches.  The procedures
 ;;                     irregex-match-{start,end}-{index,chunk} now also
 ;;                     accept named submatches, with the index argument
-;;                     made optional.
+;;                     made optional.  Improved argument type checks.
+;;                     Disallow negative submatch index.
 ;; 0.8.1: 2010/03/09 - backtracking irregex-match fix and other small fixes
 ;; 0.8.0: 2010/01/20 - optimizing DFA compilation, adding SRE escapes
 ;;                     inside PCREs, adding utility SREs
@@ -135,25 +136,17 @@
 
 ;; public interface with error checking
 (define (irregex-match-start-chunk m . opt)
-  (let ((n (irregex-match-numeric-index m opt)))
-    (if (not (irregex-match-valid-numeric-index? m n))
-        (error "irregex-match-start-chunk: not a valid index" m n)
-        (%irregex-match-start-chunk m n))))
+  (let ((n (irregex-match-numeric-index "irregex-match-start-chunk" m opt #t)))
+    (%irregex-match-start-chunk m n)))
 (define (irregex-match-start-index m . opt)
-  (let ((n (irregex-match-numeric-index m opt)))
-    (if (not (irregex-match-valid-numeric-index? m n))
-        (error "irregex-match-start-index: not a valid index" m n)
-        (%irregex-match-start-index m n))))
+  (let ((n (irregex-match-numeric-index "irregex-match-start-index" m opt #t)))
+    (%irregex-match-start-index m n)))
 (define (irregex-match-end-chunk m . opt)
-  (let ((n (irregex-match-numeric-index m opt)))
-    (if (not (irregex-match-valid-numeric-index? m n))
-        (error "irregex-match-end-chunk: not a valid index" m n)
-        (%irregex-match-end-chunk m n))))
+  (let ((n (irregex-match-numeric-index "irregex-match-end-chunk" m opt #t)))
+    (%irregex-match-end-chunk m n)))
 (define (irregex-match-end-index m . opt)
-  (let ((n (irregex-match-numeric-index m opt)))
-    (if (not (irregex-match-valid-numeric-index? m n))
-        (error "irregex-match-end-index: not a valid index" m n)
-        (%irregex-match-end-index m n))))
+  (let ((n (irregex-match-numeric-index "irregex-match-end-index" m opt #t)))
+    (%irregex-match-end-index m n)))
 
 (define (irregex-match-start-chunk-set! m n start)
   (vector-set! m (+ 3 (* n 4)) start))
@@ -164,42 +157,55 @@
 (define (irregex-match-end-index-set! m n end)
   (vector-set! m (+ 6 (* n 4)) end))
 
-(define (irregex-match-numeric-index m opt)
-  (if (pair? opt)
-      (if (number? (car opt))
-          (car opt)
-	  (let lp ((ls (irregex-match-names m))
-                   (exists #f))
-	    (cond ((null? ls)
-                   (if exists #f (error "unknown match name" (car opt))))
-		  ((eq? (car opt) (caar ls))
-                   (if (%irregex-match-start-chunk m (cdar ls))
-                       (cdar ls)
-                       (lp (cdr ls) #t)))
-		  (else (lp (cdr ls) exists)))))
-      0))
+;; Helper procedure to convert any type of index from a rest args list
+;; to a numeric index.  Named submatches are converted to their corresponding
+;; numeric index, and numeric submatches are checked for validity.
+;; If strict? is true, an error is raised for invalid numeric indices.
+;; #f is returned if strict? is false, but unknown named submatches always
+;; cause an error, regardless of strict?ness
+(define (irregex-match-numeric-index location m opt strict?)
+  (cond
+   ((not (irregex-match-data? m))
+    (error (string-append location ": not match data") m))
+   ((not (pair? opt)) 0)
+   ((pair? (cdr opt))
+    (apply error (string-append location ": too many arguments") m opt))
+   (else
+    (let ((n (car opt)))
+      (if (number? n)
+          (or (and (irregex-match-valid-numeric-index? m n) n)
+              (and strict?
+                   (error (string-append location ": not a valid index") m n)))
+          (let lp ((ls (irregex-match-names m))
+                   (unknown? #t))
+            (cond
+             ((null? ls)
+              (and unknown?
+                   (error (string-append location ": unknown match name") n)))
+             ((eq? n (caar ls))
+              (if (%irregex-match-start-chunk m (cdar ls))
+                  (cdar ls)
+                  (lp (cdr ls) #f)))
+             (else (lp (cdr ls) unknown?)))))))))
 
 (define (irregex-match-valid-numeric-index? m n)
-  (and (< (+ 3 (* n 4)) (vector-length m))
-       (vector-ref m (+ 4 (* n 4)))))
+  (and (>= n 0) (< (+ 3 (* n 4)) (vector-length m))
+       (vector-ref m (+ 4 (* n 4)))
+       #t))
 
 (define (irregex-match-valid-named-index? m n)
-  (and (assq n (irregex-match-names m)) #t))
+  (and (assq n (irregex-match-names m))
+       #t))
 
 (define (irregex-match-valid-index? m n)
-  (if (not (irregex-match-data? m))
-      (error "irregex-match-valid-index?: not match data" m))
   (if (integer? n)
       (irregex-match-valid-numeric-index? m n)
       (irregex-match-valid-named-index? m n)))
 
 (define (irregex-match-substring m . opt)
-  (if (not (irregex-match-data? m))
-      (error "irregex-match-substring: not match data" m))
-  (let* ((cnk (irregex-match-chunker m))
-         (n (irregex-match-numeric-index m opt)))
+  (let* ((n (irregex-match-numeric-index "irregex-match-substring" m opt #f))
+         (cnk (irregex-match-chunker m)))
     (and n
-         (irregex-match-valid-numeric-index? m n)
          ((chunker-get-substring cnk)
           (%irregex-match-start-chunk m n)
           (%irregex-match-start-index m n)
@@ -207,19 +213,16 @@
           (%irregex-match-end-index m n)))))
 
 (define (irregex-match-subchunk m . opt)
-  (if (not (irregex-match-data? m))
-      (error "irregex-match-subchunk: not match data" m))
-  (let* ((cnk (irregex-match-chunker m))
-         (n (irregex-match-numeric-index m opt))
+  (let* ((n (irregex-match-numeric-index "irregex-match-subchunk" m opt #f))
+         (cnk (irregex-match-chunker m))
          (get-subchunk (chunker-get-subchunk cnk)))
     (if (not get-subchunk)
         (error "this chunk type does not support match subchunks")
-        (and (irregex-match-valid-numeric-index? m n)
-             (get-subchunk
-              (%irregex-match-start-chunk m n)
-              (%irregex-match-start-index m n)
-              (%irregex-match-end-chunk m n)
-              (%irregex-match-end-index m n))))))
+        (and n (get-subchunk
+                (%irregex-match-start-chunk m n)
+                (%irregex-match-start-index m n)
+                (%irregex-match-end-chunk m n)
+                (%irregex-match-end-index m n))))))
 
 ;; chunkers tell us how to navigate through chained chunks of strings
 

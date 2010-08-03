@@ -263,6 +263,8 @@
   (test-assert
    (not (irregex-match-valid-index? (irregex-search "a.*b" "axxxb") 1)))
   (test-assert
+   (not (irregex-match-valid-index? (irregex-search "a.*b" "axxxb") -1)))
+  (test-assert
    (irregex-match-valid-index? (irregex-search "a(.*)(b)" "axxxb") 0))
   (test-assert
    (irregex-match-valid-index? (irregex-search "a(.*)(b)" "axxxb") 1))
@@ -270,6 +272,8 @@
    (irregex-match-valid-index? (irregex-search "a(.*)(b)" "axxxb") 2))
   (test-assert
    (not (irregex-match-valid-index? (irregex-search "a(.*)(b)" "axxxb") 3)))
+  (test-assert
+   (not (irregex-match-valid-index? (irregex-search "a(.*)(b)" "axxxb") -1)))
   (test 1 (irregex-match-start-index (irregex-search "a(.*)(b)" "axxxb") 1))
   (test 4 (irregex-match-end-index (irregex-search "a(.*)(b)" "axxxb") 1))
   )
@@ -353,6 +357,61 @@
         4 (end-idx 'xs `(seq "a" (submatch-named xs (+ "x")) "b") "axxxb"))
   (test-error "unknown submatch start"
               (end-idx 'xs `(seq "a" (submatch-named ys (+ "x")) "b") "axxxb")))
+
+;; This is here to help optimized implementations catch segfaults and
+;; other such problems.  These calls will always return errors in plain
+;; Scheme, but only because it will try to use the invalid object in a
+;; way that's not supported by the operator.  Once Scheme grows a
+;; standardized way of signaling and catching exceptions, these tests
+;; should be changed and expanded to check for specific condition types,
+;; and probably moved to the group where the procedure is being tested.
+(test-group "error handling"
+  (test-error (irregex 'invalid-sre))
+  (test-error (string->irregex 'not-a-string))
+  (test-error (sre->irregex 'invalid-sre))
+  
+  (test-error (irregex-search 'not-an-irx-or-sre "foo"))
+  (test-error (irregex-search "foo" 'not-a-string))
+  (test-error (irregex-search "foo" "foo" 'not-a-number))
+  (test-error (irregex-search "foo" "foo" 0 'not-a-number))
+
+  ;; TODO: irregex-new-matches, irregex-reset-matches!
+  ;; irregex-search/matches, make-irregex-chunker?
+
+  (test-error (irregex-match-valid-index? 'not-a-match-object 0))
+  (test-error (irregex-match-start-index 'not-a-match-object 0))
+  (test-error (irregex-match-start-index (irregex-search "foo" "foo") -1))
+  (test-error (irregex-match-end-index 'not-a-match-object 0))
+  (test-error (irregex-match-end-index (irregex-search "foo" "foo") -1))
+  
+  (test-error (irregex-match-start-chunk 'not-a-match-object 0))
+  (test-error (irregex-match-end-chunk 'not-a-match-object 0))
+  (test-error (irregex-match-substring 'not-a-match-object 0))
+  (test-error (irregex-match-subchunk 'not-a-match-object 0))
+  (test-error (irregex-match-num-submatches 'not-a-match-object))
+  (test-error (irregex-match-names 'not-a-match-object))
+  (test-error (irregex-num-submatches 'not-an-irx))
+  (test-error (irregex-names 'not-an-irx))
+  
+  (test-error (irregex-fold 'not-an-irx (lambda x x) 0 "foo" (lambda x x) 0 3))
+  (test-error (irregex-fold "foo" 'not-a-proc 0 "foo" (lambda x x) 0 3))
+  (test-error (irregex-fold "foo" (lambda (a b) b) 0 'not-a-string
+                            (lambda x x) 0 3))
+  (test-error (irregex-fold "foo" (lambda (a b) b) 0 "foo" 'not-a-proc 0 3))
+  (test-error (irregex-fold "foo" (lambda (a b) b) 0 "foo" (lambda x x)
+                            'not-a-number 3))
+  (test-error (irregex-fold "foo" (lambda (a b) b) 0 "foo" (lambda x x) 0
+                            'not-a-number))
+
+  (test-error (irregex-replace 'not-an-irx "str"))
+  (test-error (irregex-replace "foo" "foo" (lambda (x) 'not-a-string)))
+  (test-error (irregex-replace/all 'not-an-irx "str"))
+  (test-error (irregex-replace/all "foo" "foo" (lambda (x) 'not-a-string)))
+
+  ;; Are these supposed to be exported?
+  ;; irregex-nfa, irregex-dfa, irregex-dfa/search, irregex-dfa/extract
+  ;; irregex-flags, irregex-lengths
+  )
 
 (test-end)
 
