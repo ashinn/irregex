@@ -3643,7 +3643,6 @@
 
 (define (irregex-fold/fast irx kons knil str . o)
   (if (not (string? str)) (error "irregex-fold: not a string" str))
-  (if (not (procedure? kons)) (error "irregex-fold: not a procedure" kons))
   (let* ((irx (irregex irx))
          (matches (irregex-new-matches irx))
          (finish (or (and (pair? o) (car o)) (lambda (i acc) acc)))
@@ -3669,6 +3668,7 @@
                   (lp end acc))))))))
 
 (define (irregex-fold irx kons . args)
+  (if (not (procedure? kons)) (error "irregex-fold: not a procedure" kons))
   (let ((kons2 (lambda (i m acc) (kons i (irregex-copy-matches m) acc))))
     (apply irregex-fold/fast irx kons2 args)))
 
