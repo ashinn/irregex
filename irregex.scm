@@ -3693,6 +3693,7 @@
                   (lp end-src end-index acc))))))))
 
 (define (irregex-fold/chunked irx kons . args)
+  (if (not (procedure? kons)) (error "irregex-fold/chunked: not a procedure" kons))
   (let ((kons2 (lambda (s i m acc) (kons s i (irregex-copy-matches m) acc))))
     (apply irregex-fold/chunked/fast irx kons2 args)))
 
