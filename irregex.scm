@@ -198,6 +198,8 @@
        #t))
 
 (define (irregex-match-valid-index? m n)
+  (if (not (irregex-match-data? m))
+      (error "irregex-match-valid-index?: not match data" m))
   (if (integer? n)
       (irregex-match-valid-numeric-index? m n)
       (irregex-match-valid-named-index? m n)))
