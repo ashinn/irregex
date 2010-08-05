@@ -31,10 +31,12 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; History
 ;;
-;; 0.8.2: 2010/08/03 - (...)? submatch extraction fix and alternate
+;; 0.8.2: 2010/08/05 - (...)? submatch extraction fix and alternate
 ;;                     named submatches from Peter Bex
-;;                     Added irregex-match-valid-index? to export list
-;;                     and made it accept named submatches.  The procedures
+;;                     Added irregex-split, irregex-extract,
+;;                     irregex-match-names and irregex-match-valid-index?
+;;                     to Chicken and Guile module export lists and made
+;;                     the latter accept named submatches.  The procedures
 ;;                     irregex-match-{start,end}-{index,chunk} now also
 ;;                     accept named submatches, with the index argument
 ;;                     made optional.  Improved argument type checks.

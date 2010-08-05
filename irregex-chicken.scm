@@ -9,12 +9,12 @@
   irregex-match-substring irregex-match-subchunk
   irregex-match-start-chunk irregex-match-start-index
   irregex-match-end-chunk irregex-match-end-index
-  irregex-match-num-submatches
+  irregex-match-num-submatches irregex-match-names
   irregex-match-valid-index?
   irregex-fold irregex-replace irregex-replace/all
   irregex-dfa irregex-dfa/search irregex-dfa/extract
   irregex-nfa irregex-flags irregex-lengths irregex-names
-  irregex-num-submatches
+  irregex-num-submatches irregex-extract irregex-split
   )
   (import scheme)
   (import chicken)
