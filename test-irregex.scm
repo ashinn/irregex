@@ -381,6 +381,8 @@
   ;; irregex-search/matches, make-irregex-chunker?
 
   (test-error (irregex-match-valid-index? 'not-a-match-object 0))
+  (test-error (irregex-match-valid-index?
+               (irregex-search "a(.*)(b)" "axxxb") 1.0))
   (test-error (irregex-match-start-index 'not-a-match-object 0))
   (test-error (irregex-match-start-index (irregex-search "foo" "foo") -1))
   (test-error (irregex-match-start-index
@@ -393,6 +395,7 @@
   (test-error (irregex-match-start-chunk 'not-a-match-object 0))
   (test-error (irregex-match-end-chunk 'not-a-match-object 0))
   (test-error (irregex-match-substring 'not-a-match-object 0))
+  (test-error (irregex-match-substring (irregex-search "a(.*)(b)" "axxxb") 1.0))
   (test-error (irregex-match-subchunk 'not-a-match-object 0))
   (test-error (irregex-match-num-submatches 'not-a-match-object))
   (test-error (irregex-match-names 'not-a-match-object))
