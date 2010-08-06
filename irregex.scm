@@ -1969,7 +1969,7 @@
     (if (not (and (integer? start) (exact? start)))
         (error "irregex-match: not an exact integer" start))
     (if (not (and (integer? end) (exact? end)))
-        (error "irregex-match: not an exact integer" start))
+        (error "irregex-match: not an exact integer" end))
     (irregex-match/chunked irx
                            irregex-basic-string-chunker
                            (list str start end))))
