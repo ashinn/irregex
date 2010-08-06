@@ -175,9 +175,12 @@
    (else
     (let ((n (car opt)))
       (if (number? n)
-          (or (and (irregex-match-valid-numeric-index? m n) n)
-              (and strict?
-                   (error (string-append location ": not a valid index") m n)))
+          (if (and (integer? n) (exact? n))
+              (or (and (irregex-match-valid-numeric-index? m n) n)
+                  (and strict?
+                       (error (string-append location ": not a valid index")
+                              m n)))
+              (error (string-append location ": not an exact integer") n))
           (let lp ((ls (irregex-match-names m))
                    (unknown? #t))
             (cond
@@ -203,7 +206,9 @@
   (if (not (irregex-match-data? m))
       (error "irregex-match-valid-index?: not match data" m))
   (if (integer? n)
-      (irregex-match-valid-numeric-index? m n)
+      (if (not (exact? n))
+          (error "irregex-match-valid-index?: not an exact integer" n)
+          (irregex-match-valid-numeric-index? m n))
       (irregex-match-valid-named-index? m n)))
 
 (define (irregex-match-substring m . opt)
@@ -1871,7 +1876,7 @@
     (if (not (and (integer? start) (exact? start)))
         (error "irregex-search: not an exact integer" start))
     (if (not (and (integer? end) (exact? end)))
-        (error "irregex-search: not an exact integer" start))
+        (error "irregex-search: not an exact integer" end))
     (irregex-search/chunked x
                             irregex-basic-string-chunker
                             (list str start end)
