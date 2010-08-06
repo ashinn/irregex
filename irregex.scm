@@ -31,7 +31,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; History
 ;;
-;; 0.8.2: 2010/08/05 - (...)? submatch extraction fix and alternate
+;; 0.8.2: 2010/08/06 - (...)? submatch extraction fix and alternate
 ;;                     named submatches from Peter Bex
 ;;                     Added irregex-split, irregex-extract,
 ;;                     irregex-match-names and irregex-match-valid-index?
@@ -1868,6 +1868,10 @@
   (if (not (string? str)) (error "irregex-search: not a string" str))
   (let ((start (or (and (pair? o) (car o)) 0))
         (end (or (and (pair? o) (pair? (cdr o)) (cadr o)) (string-length str))))
+    (if (not (and (integer? start) (exact? start)))
+        (error "irregex-search: not an exact integer" start))
+    (if (not (and (integer? end) (exact? end)))
+        (error "irregex-search: not an exact integer" start))
     (irregex-search/chunked x
                             irregex-basic-string-chunker
                             (list str start end)
@@ -1962,6 +1966,10 @@
   (if (not (string? str)) (error "irregex-match: not a string" str))
   (let ((start (or (and (pair? o) (car o)) 0))
         (end (or (and (pair? o) (pair? (cdr o)) (cadr o)) (string-length str))))
+    (if (not (and (integer? start) (exact? start)))
+        (error "irregex-search: not an exact integer" start))
+    (if (not (and (integer? end) (exact? end)))
+        (error "irregex-search: not an exact integer" start))
     (irregex-match/chunked irx
                            irregex-basic-string-chunker
                            (list str start end))))
@@ -3654,8 +3662,10 @@
          (end (if (and (pair? o) (pair? (cdr o)) (pair? (cddr o)))
                   (caddr o)
                   (string-length str))))
-    (if (not (integer? start)) (error "irregex-fold: not an integer" start))
-    (if (not (integer? end)) (error "irregex-fold: not an integer" end))
+    (if (not (and (integer? start) (exact? start)))
+        (error "irregex-fold: not an exact integer" start))
+    (if (not (and (integer? end) (exact? end)))
+        (error "irregex-fold: not an exact integer" end))
     (irregex-match-chunker-set! matches irregex-basic-string-chunker)
     (let lp ((i start) (acc knil))
       (if (>= i end)

@@ -374,6 +374,8 @@
   (test-error (irregex-search "foo" 'not-a-string))
   (test-error (irregex-search "foo" "foo" 'not-a-number))
   (test-error (irregex-search "foo" "foo" 0 'not-a-number))
+  (test-error (irregex-search "foo" "foo" 1.0))
+  (test-error (irregex-search "foo" "foo" 0 1.0))
 
   ;; TODO: irregex-new-matches, irregex-reset-matches!
   ;; irregex-search/matches, make-irregex-chunker?
@@ -381,8 +383,12 @@
   (test-error (irregex-match-valid-index? 'not-a-match-object 0))
   (test-error (irregex-match-start-index 'not-a-match-object 0))
   (test-error (irregex-match-start-index (irregex-search "foo" "foo") -1))
+  (test-error (irregex-match-start-index
+               (irregex-search '(submatch "foo") "foo") 1.0))
   (test-error (irregex-match-end-index 'not-a-match-object 0))
   (test-error (irregex-match-end-index (irregex-search "foo" "foo") -1))
+  (test-error (irregex-match-end-index
+               (irregex-search '(submatch "foo") "foo") 1.0))
   
   (test-error (irregex-match-start-chunk 'not-a-match-object 0))
   (test-error (irregex-match-end-chunk 'not-a-match-object 0))
@@ -402,6 +408,8 @@
                             'not-a-number 3))
   (test-error (irregex-fold "foo" (lambda (a b) b) 0 "foo" (lambda x x) 0
                             'not-a-number))
+  (test-error (irregex-fold "foo" (lambda (a b) b) 0 "foo" (lambda x x) 1.0 3))
+  (test-error (irregex-fold "foo" (lambda (a b) b) 0 "foo" (lambda x x) 0 1.0))
 
   (test-error (irregex-replace 'not-an-irx "str"))
   (test-error (irregex-replace "foo" "foo" (lambda (x) 'not-a-string)))
