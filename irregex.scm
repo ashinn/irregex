@@ -1217,9 +1217,7 @@
                    (else
                     (let ((c (cond ((assv c posix-escape-sequences) => cdr)
                                    (else c))))
-                      (go (+ i 2)
-                          (cons (string-ref str (+ i 1)) (cons c chars))
-                          ranges))))))
+                      (go (+ i 2) (cons c chars) ranges))))))
               (else
                (if (and utf8? (<= #x80 (char->integer c) #xFF))
                    (let ((len (utf8-start-char->length c)))
