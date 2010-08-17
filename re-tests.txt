@@ -131,3 +131,4 @@ multiple words	multiple words, yeah	y	&	multiple words
 (we|wee|week)(knights|night)	weeknights	y	&-\1-\2	weeknights-wee-knights
 (a([^a])*)*	abcaBC	y	&-\1-\2	abcaBC-aBC-C
 ([Aa]b).*\1	abxyzab	y	&-\1	abxyzab-ab
+a([\/\\]*)b	a//\\b	y	&-\1	a//\\b-//\\
