@@ -13,34 +13,26 @@
 
 (define rxmatch irregex-search)
 (define (rxmatch-start m . o)
-  (irregex-match-start-index
-   m
-   (if (pair? o) (irregex-match-index m (car o)) 0)))
+  (irregex-match-start-index m (if (pair? o) (car o) 0)))
 (define (rxmatch-end m . o)
-  (irregex-match-end-index
-   m
-   (if (pair? o) (irregex-match-index m (car o)) 0)))
+  (irregex-match-end-index m (if (pair? o) (car o) 0)))
 
 (define (match&list pat input)
   (let ((irx (irregex pat)))
     (cond ((irregex-search irx input)
            => (lambda (match)
                 (map (lambda (n) (irregex-match-substring match n))
-                     (iota (+ 1 (irregex-submatches irx))))))
+                     (iota (+ 1 (irregex-num-submatches irx))))))
           (else #f))))
 
 (define (rxmatch-after m . o)
   (substring (car (irregex-match-start-chunk m 0))
-             (irregex-match-end-index
-              m
-              (irregex-match-index m (if (pair? o) (car o) 0)))))
+             (irregex-match-end-index m (if (pair? o) (car o) 0))))
 
 (define (rxmatch-before m . o)
   (substring (car (irregex-match-start-chunk m 0))
              0
-             (irregex-match-start-index
-              m
-              (irregex-match-index m (if (pair? o) (car o) 0)))))
+             (irregex-match-start-index m (if (pair? o) (car o) 0))))
 
 (define (rxmatch-substring pat input . o)
   (let ((i (if (pair? o) (car o) 0)))
