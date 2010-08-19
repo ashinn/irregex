@@ -7,6 +7,7 @@
 
 (test-begin)
 
+(load "test-cset.scm")
 (load "test-irregex.scm")
 (load "test-irregex-gauche.scm")
 (load "test-irregex-scsh.scm")
