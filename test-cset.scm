@@ -31,6 +31,10 @@
       (cset-union (plist->cset '(#\d #\f #\h #\j))
                   (string->cset "g")))
 
+(test (range->cset #\d #\j)
+      (cset-union (string->cset "g")
+                  (plist->cset '(#\d #\f #\h #\j))))
+
 (test-assert
  (not (equal? (string->cset "abcef12345") ; without the 'd'
               (cset-union (range->cset (integer->char 97) (integer->char 102))
