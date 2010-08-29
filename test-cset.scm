@@ -3,9 +3,6 @@
 
 ;;; Some of these are based on Olin Shivers' SRFI 14 tests
 
-;; IMPORTANT NOTE: This assumes that csets can be compared using equal?
-;; If this is no longer the case, these tests will always fail.
-
 (use test extras utils irregex)
 
 (load "irregex.scm")
@@ -14,29 +11,33 @@
 
 (test-begin)
 
-(test (plist->cset '(#\a #\a #\e #\e #\i #\i #\o #\o #\u #\u))
-      (string->cset "ioeauaiii"))
+(test-assert
+ (cset=? (plist->cset '(#\a #\a #\e #\e #\i #\i #\o #\o #\u #\u))
+         (string->cset "ioeauaiii")))
 
 (test (plist->cset '(#\x #\y)) (string->cset "xy"))
-(test-assert (not (equal? (plist->cset '(#\x #\x #\y #\y #\z #\z))
-                           (string->char-set "xy"))))
-(test-assert (not (equal? (plist->cset '(#\x #\z))
+(test-assert (not (cset=? (plist->cset '(#\x #\x #\y #\y #\z #\z))
+                          (string->cset "xy"))))
+(test-assert (not (cset=? (plist->cset '(#\x #\z))
                            (string->cset "xy"))))
 
-(test (string->cset "abcdef12345")
-      (cset-union (range->cset (integer->char 97) (integer->char 102))
-                  (string->cset "12345")))
-
-(test (range->cset #\d #\j)
-      (cset-union (plist->cset '(#\d #\f #\h #\j))
-                  (string->cset "g")))
-
-(test (range->cset #\d #\j)
-      (cset-union (string->cset "g")
-                  (plist->cset '(#\d #\f #\h #\j))))
+(test-assert
+ (cset=? (string->cset "abcdef12345")
+         (cset-union (range->cset (integer->char 97) (integer->char 102))
+                     (string->cset "12345"))))
 
 (test-assert
- (not (equal? (string->cset "abcef12345") ; without the 'd'
+ (cset=? (range->cset #\d #\j)
+         (cset-union (plist->cset '(#\d #\f #\h #\j))
+                     (string->cset "g"))))
+
+(test-assert
+ (cset=? (range->cset #\d #\j)
+         (cset-union (string->cset "g")
+                     (plist->cset '(#\d #\f #\h #\j)))))
+
+(test-assert
+ (not (cset=? (string->cset "abcef12345") ; without the 'd'
               (cset-union (range->cset (integer->char 97) (integer->char 102))
                           (string->cset "12345")))))
 
@@ -81,29 +82,36 @@
 
   (test-assert (cset-contains? cs #\n)))
 
-(test (plist->cset '(#\a #\c #\l #\l #\n #\n))
-      (cset-intersection (plist->cset '(#\a #\c #\l #\l #\n #\n))
-                         (plist->cset '(#\a #\e #\h #\l #\n #\p))))
+(test-assert
+ (cset=? (plist->cset '(#\a #\c #\l #\l #\n #\n))
+         (cset-intersection (plist->cset '(#\a #\c #\l #\l #\n #\n))
+                            (plist->cset '(#\a #\e #\h #\l #\n #\p)))))
 
-(test (plist->cset '(#\b #\b #\l #\l #\n #\n))
-      (cset-intersection (plist->cset '(#\a #\c #\h #\l #\n #\n))
-                         (plist->cset '(#\b #\b #\l #\l #\n #\n))))
+(test-assert
+ (cset=? (plist->cset '(#\b #\b #\l #\l #\n #\n))
+         (cset-intersection (plist->cset '(#\a #\c #\h #\l #\n #\n))
+                            (plist->cset '(#\b #\b #\l #\l #\n #\n)))))
 
-(test (cset-intersection (sre->cset 'hex-digit)
-                         (cset-complement (sre->cset 'digit)))
-      (string->cset "abcdefABCDEF"))
+(test-assert
+ (cset=? (cset-intersection (sre->cset 'hex-digit)
+                            (cset-complement (sre->cset 'digit)))
+         (string->cset "abcdefABCDEF")))
 
-(test (cset-union (sre->cset 'hex-digit)
-                  (string->cset "abcdefghijkl"))
-      (string->cset "abcdefABCDEFghijkl0123456789"))
+(test-assert
+ (cset=? (cset-union (sre->cset 'hex-digit)
+                     (string->cset "abcdefghijkl"))
+         (string->cset "abcdefABCDEFghijkl0123456789")))
 
-(test (cset-difference (string->cset "abcdefghijklmn")
-                       (sre->cset 'hex-digit))
-      (string->cset "ghijklmn"))
+(test-assert
+ (cset=? (cset-difference (string->cset "abcdefghijklmn")
+                          (sre->cset 'hex-digit))
+         (string->cset "ghijklmn")))
 
-(test (string->cset "0123456789")
-      (cset-difference (sre->cset 'hex-digit) (sre->cset 'alpha)))
-(test (string->cset "abcdefABCDEF")
-      (cset-intersection (sre->cset 'hex-digit) (sre->cset 'alpha)))
+(test-assert
+ (cset=? (string->cset "0123456789")
+         (cset-difference (sre->cset 'hex-digit) (sre->cset 'alpha))))
+(test-assert
+ (cset=? (string->cset "abcdefABCDEF")
+         (cset-intersection (sre->cset 'hex-digit) (sre->cset 'alpha))))
 
 (test-end)

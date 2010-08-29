@@ -31,7 +31,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; History
 ;;
-;; 0.8.2: 2010/08/19 - (...)? submatch extraction fix and alternate
+;; 0.8.2: 2010/08/28 - (...)? submatch extraction fix and alternate
 ;;                     named submatches from Peter Bex
 ;;                     Added irregex-split, irregex-extract,
 ;;                     irregex-match-names and irregex-match-valid-index?
@@ -2071,11 +2071,9 @@
             ((< i end)
              (let* ((ch (string-ref str i))
                     (next (find (lambda (x)
-                                  (if (eqv? ch (car x))
-                                      #t
-                                      (and (pair? (car x))
-                                           (char<=? (caar x) ch)
-                                           (char<=? ch (cdar x)))))
+                                  (or (eqv? ch (car x))
+                                      (and (not (char? (car x)))
+                                           (cset-contains? (car x) ch))))
                                 (cdr state))))
                (and next (lp2 (+ i 1) (dfa-next-state dfa next)))))
             (else
@@ -2119,11 +2117,9 @@
            (else
             (let* ((ch (string-ref str i))
                    (cell (find (lambda (x)
-                                 (if (eqv? ch (car x))
-                                     #t
-                                     (and (pair? (car x))
-                                          (char<=? (caar x) ch)
-                                          (char<=? ch (cdar x)))))
+                                 (or (eqv? ch (car x))
+                                     (and (not (char? (car x)))
+                                          (cset-contains? (car x) ch))))
                                (cdr state))))
               (cond
                (cell
@@ -2258,11 +2254,11 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; SRE->NFA compilation
 ;;
-;; An NFA state is a numbered node with a list of patter->number
-;; transitions, where pattern is either a character, (lo . hi)
-;; character range, or epsilon (indicating an empty transition).
-;; There may be duplicate characters and overlapping ranges - since
-;; it's an NFA we process it by considering all possible transitions.
+;; An NFA state is a numbered node with a list of pattern->number
+;; transitions, where pattern is character set range, or epsilon
+;; (indicating an empty transition).
+;; There may be overlapping ranges - since it's an NFA we process it
+;; by considering all possible transitions.
 
 (define *nfa-presize* 128)  ;; constant
 (define *nfa-num-fields* 4) ;; constant
@@ -2274,8 +2270,6 @@
   (vector-ref nfa (* i *nfa-num-fields*)))
 (define (nfa-set-state-trans! nfa i x)
   (vector-set! nfa (* i *nfa-num-fields*) x))
-(define (nfa-push-state-trans! nfa i x)
-  (nfa-set-state-trans! nfa i (cons x (nfa-get-state-trans nfa i))))
 
 (define (nfa-get-epsilons nfa i)
   (vector-ref nfa (+ (* i *nfa-num-fields*) 1)))
@@ -2323,15 +2317,15 @@
               (set! buf tmp)))
         (nfa-set-state-trans! buf n2 trans-ls)
         n2)
-      (define (extend-state! next . trans)
+      (define (extend-state! next trans-cs)
         (and next
-             (add-state! (new-state-number next)
-                         (map (lambda (x) (cons x next)) trans))))
+             (add-state! (new-state-number next) (cons trans-cs next))))
       (define (add-char-state! next ch)
         (let ((alt (char-altcase ch)))
-          (if (and (flag-set? flags ~case-insensitive?) (not (eqv? ch alt)))
-              (extend-state! next ch alt)
-              (extend-state! next ch))))
+          (if (flag-set? flags ~case-insensitive?)
+              (extend-state! next (cset-union (range->cset ch ch)
+                                              (range->cset alt alt)))
+              (extend-state! next (range->cset ch ch)))))
       (if (null? ls)
           next
           (cond
@@ -2367,12 +2361,8 @@
                        next))))
            ((pair? (car ls))
             (cond
-             ((string? (caar ls))
-              ;; enumerated character set
-              (lp (cons (sre-alternate (string->list (caar ls))) (cdr ls))
-                  n
-                  flags
-                  next))
+             ((string? (caar ls))       ; Enumerated character set
+              (extend-state! (lp (cdr ls) n flags next) (string->cset (caar ls))))
              (else
               (case (caar ls)
                 ((seq :)
@@ -2397,7 +2387,7 @@
                    (case (length pl) ;; TODO could be expensive
                      ((2)
                       (extend-state! (lp (cdr ls) n flags next)
-                                     (cons (car pl) (cadr pl))))
+                                     (range->cset (car pl) (cadr pl))))
                      (else
                       (let ((next (lp (cdr ls) n flags next)))
                         (and
@@ -2425,7 +2415,8 @@
                                            flags
                                            next))))
                           (and a
-                               (let ((c (add-state! (new-state-number a) '())))
+                               (let ((c (add-state! (new-state-number a)
+                                                    '())))
                                  (nfa-add-epsilon! buf c a)
                                  (nfa-add-epsilon! buf c b)
                                  c)))))))
@@ -2687,6 +2678,8 @@
 
 ;; When the conversion is complete we renumber the DFA sets-of-states
 ;; in order and convert the result to a vector for fast lookup.
+;; Charsets containing single characters are converted to those characters
+;; for quick matching of the literal parts in a regex.
 (define (dfa-renumber nfa dfa)
   (let* ((len (length dfa))
          (states (make-vector (nfa-num-states nfa) '()))
@@ -2702,127 +2695,66 @@
     (let lp ((ls dfa) (i 0))
       (cond ((pair? ls)
              (for-each
-              (lambda (x) (set-cdr! x (renumber (cdr x))))
+              (lambda (x)
+                (set-car! x (maybe-cset->char (car x)))
+                (set-cdr! x (renumber (cdr x))))
               (cddar ls))
              (vector-set! res i (cdar ls))
              (lp (cdr ls) (+ i 1)))))
     res))
 
-;; Extract all distinct characters or ranges and the potential states
-;; they can transition to from a given set of states.  Any ranges that
-;; would overlap with distinct characters are split accordingly.
+;; Extract all distinct ranges and the potential states they can transition
+;; to from a given set of states.  Any ranges that would overlap with
+;; distinct characters are split accordingly.
 (define (nfa-state-transitions nfa states)
   (let ((res (nfa-multi-state-fold
               states
               (lambda (st res)
-                (fold (lambda (trans res)
-                        (nfa-join-transitions! nfa res (car trans) (cdr trans)))
+                (let ((trans (nfa-get-state-trans nfa st)))
+                  (if (null? trans)
                       res
-                      (nfa-get-state-trans nfa st)))
+                      (nfa-join-transitions! nfa res (car trans) (cdr trans)))))
               '())))
     (for-each (lambda (x) (set-cdr! x (nfa-closure nfa (cdr x)))) res)
     res))
 
 (define (nfa-join-transitions! nfa existing elt state)
-  (define (join! ls elt state)
-    (if (not elt)
-        ls
-        (nfa-join-transitions! nfa ls elt state)))
-  (cond
-   ((char? elt)
-    (let lp ((ls existing) (res '()))
-      (cond
-       ((null? ls)
-        ;; done, just cons this on to the original list
-        (cons (cons elt (nfa-state->multi-state nfa state)) existing))
-       ((eq? elt (caar ls))
-        ;; add a new state to an existing char
-        (set-cdr! (car ls) (nfa-multi-state-add! (cdar ls) state))
-        existing)
-       ((and (pair? (caar ls))
-             (char<=? (caaar ls) elt)
-             (char<=? elt (cdaar ls)))
-        ;; split a range
-        (apply
-         (lambda (left right)
-           (let ((left-copy (nfa-multi-state-copy (cdar ls)))
-                 (right-copy (nfa-multi-state-copy (cdar ls))))
-             (cons (cons elt (nfa-multi-state-add! (cdar ls) state))
-                   (append (if left (list (cons left left-copy)) '())
-                           (if right (list (cons right right-copy)) '())
-                           res
-                           (cdr ls)))))
-         (split-char-range (caar ls) elt)))
-       (else
-        ;; keep looking
-        (lp (cdr ls) (cons (car ls) res))))))
-   (else
-    (let ((lo (car elt))
-          (hi (cdr elt)))
-      (let lp ((ls existing) (res '()))
-        (cond
-         ((null? ls)
-          ;; done, just cons this on to the original list
-          (cons (cons elt (nfa-state->multi-state nfa state)) existing))
-         ((and (char? (caar ls)) (char<=? lo (caar ls)) (char<=? (caar ls) hi))
-          ;; range enclosing a character
-          (apply
-           (lambda (left right)
-             (set-cdr! (car ls) (nfa-multi-state-add! (cdar ls) state))
-             (join! (join! existing left state) right state))
-           (split-char-range elt (caar ls))))
-         ((and (pair? (caar ls))
-               (or (and (char<=? (caaar ls) hi) (char<=? lo (cdaar ls)))
-                   (and (char<=? hi (caaar ls)) (char<=? (cdaar ls) lo))))
-          ;; overlapping ranges
-          (apply
-           (lambda (left1 left2 same right1 right2) ;; 5 regions
-             (let ((right1-copy (nfa-multi-state-copy (cdar ls)))
-                   (right2-copy (nfa-multi-state-copy (cdar ls))))
-               (set-car! (car ls) same)
-               (set-cdr! (car ls) (nfa-multi-state-add! (cdar ls) state))
-               (let* ((res (if right1
-                               (cons (cons right1 right1-copy) existing)
-                               existing))
-                      (res (if right2
-                               (cons (cons right2 right2-copy) res)
-                               res)))
-                 (join! (join! res left1 state) left2 state))))
-           (intersect-char-ranges elt (caar ls))))
-         (else
-          (lp (cdr ls) (cons (car ls) res)))))))))
-
-(define (char-range c1 c2)
-  (if (eqv? c1 c2) c1 (cons c1 c2)))
-
-;; assumes ch is included in the range
-(define (split-char-range range ch)
-  (list
-   (and (not (eqv? ch (car range)))
-        (char-range (car range) (integer->char (- (char->integer ch) 1))))
-   (and (not (eqv? ch (cdr range)))
-        (char-range (integer->char (+ (char->integer ch) 1)) (cdr range)))))
-
-;; returns 5 (possibly #f) char ranges:
-;;    a-only-1  a-only-2  a-and-b  b-only-1  b-only-2
-;;
-;; TODO: Is this odd procedure really necessary?
-(define (intersect-char-ranges a b)
-  (if (char>? (car a) (car b))
-      (reverse (intersect-char-ranges b a))
-      (let ((a-lo (car a))
-            (a-hi (cdr a))
-            (b-lo (car b))
-            (b-hi (cdr b)))
-        (list
-         (and (char<? a-lo b-lo)
-              (char-range a-lo (prev-char b-lo)))
-         (and (char>? a-hi b-hi)
-              (char-range (next-char b-hi) a-hi))
-         (char-range b-lo (if (char<? b-hi a-hi) b-hi a-hi))
-         #f
-         (and (char>? b-hi a-hi)
-              (char-range (next-char a-hi) b-hi))))))
+  (define (csets-intersect? a b)
+    (let ((i (cset-intersection a b)))
+      (and (not (cset-empty? i)) i)))
+  (let lp ((ls existing) (res '()))
+    (cond
+     ((null? ls)
+      (cond       ; First try to find a group that includes this state
+       ((find (lambda (x) (nfa-multi-state-contains? (cdr x) state)) existing) =>
+        (lambda (existing-state)    ; If found, merge charsets with it
+          (set-car! existing-state (cset-union (car existing-state) elt))
+          existing))
+       ;; State not seen yet?  Add a new state transition
+       (else (cons (cons elt (nfa-state->multi-state nfa state)) existing))))
+     ((cset=? elt (caar ls)) ; Add state to existing set for this charset
+      (set-cdr! (car ls) (nfa-multi-state-add! (cdar ls) state))
+      existing)
+     ((csets-intersect? elt (caar ls)) => ; overlapping charset, but diff state
+      (lambda (intersection)
+        (let* ((only-in-old (cset-difference (caar ls) elt))
+               (states-for-old (and (not (cset-empty? only-in-old))
+                                    (nfa-multi-state-copy (cdar ls))))
+               (only-in-new (cset-difference elt (caar ls)))
+               (states-for-new (and (not (cset-empty? only-in-new))
+                                    (nfa-multi-state-copy (cdar ls)))))
+          ;; Add this state to the states already here and restrict to
+          ;; the overlapping charset
+          (set-car! (car ls) intersection)
+          (set-cdr! (car ls) (nfa-multi-state-add! (cdar ls) state))
+          ;; Continue with the remaining subset of the new cset that we got
+          (nfa-join-transitions! nfa (if states-for-old
+                                         (cons (cons only-in-old states-for-old)
+                                               existing)
+                                         existing)
+                                 only-in-new state))))
+     (else
+      (lp (cdr ls) (cons (car ls) res))))))
 
 (define (nfa-cache-state-closure! nfa state)
   (let ((cached (nfa-get-state-closure nfa state)))
@@ -3519,6 +3451,15 @@
 
 (define (make-cset) (vector))
 (define (range->cset from to) (vector (cons from to)))
+(define (cset-empty? cs) (zero? (vector-length cs)))
+(define (maybe-cset->char cs)
+  (if (and (= (vector-length cs) 1)
+           (char=? (car (vector-ref cs 0)) (cdr (vector-ref cs 0))))
+      (car (vector-ref cs 0))
+      cs))
+
+;; Since csets are sorted, there's only one possible representation of any cset
+(define cset=? equal?)
 
 (define (cset-size cs)
   (let ((len (vector-length cs)))
@@ -3596,16 +3537,19 @@
 
 (define (cset-contains? cset ch)
   (let ((len (vector-length cset)))
-    (and (> len 0)
-         (let lp ((lower 0) (upper len))
-           (let* ((middle (+ lower (quotient (- upper lower) 2)))
-                  (range (vector-ref cset middle)))
-             (cond
-              ((char<? ch (car range))
-               (and (< lower middle) (lp lower middle)))
-              ((char>? ch (cdr range))
-               (and (< (+ middle 1) upper) (lp (+ middle 1) upper)))
-              (else #t)))))))
+    (case len
+      ((0) #f)
+      ((1) (let ((range (vector-ref cset 0)))
+             (and (char<=? ch (cdr range)) (char<=? (car range) ch))))
+      (else (let lp ((lower 0) (upper len))
+              (let* ((middle (quotient (+ upper lower) 2))
+                     (range (vector-ref cset middle)))
+                (cond ((char<? (cdr range) ch)
+                       (let ((next (+ middle 1)))
+                         (and (< next upper) (lp next upper))))
+                      ((char<? ch (car range))
+                       (and (< lower middle) (lp lower middle)))
+                      (else #t))))))))
 
 (define (char-ranges-union a b)
   (cons (if (char<=? (car a) (car b)) (car a) (car b))
