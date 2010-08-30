@@ -2380,22 +2380,10 @@
                    (and next
                         (lp (cdar ls) (new-state-number next) flags next))))
                 ((/ - & ~)
-                 (let* ((ranges
-                         (sre->cset (car ls)
-                                    (flag-set? flags ~case-insensitive?)))
-                        (pl (cset->plist ranges)))
-                   (case (length pl) ;; TODO could be expensive
-                     ((2)
-                      (extend-state! (lp (cdr ls) n flags next)
-                                     (range->cset (car pl) (cadr pl))))
-                     (else
-                      (let ((next (lp (cdr ls) n flags next)))
-                        (and
-                         next
-                         (lp (list (cset->sre ranges))
-                             (new-state-number next)
-                             (flag-clear flags ~case-insensitive?)
-                             next)))))))
+                 (let ((range (sre->cset (car ls)
+                                         (flag-set? flags ~case-insensitive?))))
+                   (extend-state! (lp (cdr ls) n flags next)
+                                  range)))
                 ((or)
                  (let ((next (lp (cdr ls) n flags next)))
                    (and
@@ -2471,7 +2459,7 @@
                 ;;                            (sre-sequence (cdddar ls)))))
                 ;;             (cdr ls))
                 ;;     n flags next))
-                 ;; ignore submatches altogether
+                ;; ignore submatches altogether
                 (($ submatch)
                  (lp (cons (sre-sequence (cdar ls)) (cdr ls)) n flags next))
                 ((=> submatch-named)
@@ -2740,19 +2728,20 @@
         (let* ((only-in-old (cset-difference (caar ls) elt))
                (states-for-old (and (not (cset-empty? only-in-old))
                                     (nfa-multi-state-copy (cdar ls))))
-               (only-in-new (cset-difference elt (caar ls)))
-               (states-for-new (and (not (cset-empty? only-in-new))
-                                    (nfa-multi-state-copy (cdar ls)))))
+               (result (if states-for-old
+                           (cons (cons only-in-old states-for-old)
+                                 (append res (cdr ls)))
+                           (append res (cdr ls))))
+               (only-in-new (cset-difference elt (caar ls))))
           ;; Add this state to the states already here and restrict to
           ;; the overlapping charset
           (set-car! (car ls) intersection)
           (set-cdr! (car ls) (nfa-multi-state-add! (cdar ls) state))
-          ;; Continue with the remaining subset of the new cset that we got
-          (nfa-join-transitions! nfa (if states-for-old
-                                         (cons (cons only-in-old states-for-old)
-                                               existing)
-                                         existing)
-                                 only-in-new state))))
+          ;; Continue with the remaining subset of the new cset (if nonempty)
+          (cons (car ls)
+                (if (cset-empty? only-in-new)
+                    result
+                    (nfa-join-transitions! nfa result only-in-new state))))))
      (else
       (lp (cdr ls) (cons (car ls) res))))))
 
