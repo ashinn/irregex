@@ -13,6 +13,7 @@ open(IN, "< re-benchmarks.txt");
 while (<IN>) {
   next if /^\s*(?:#.*)?$/;
   my ($name, $pat, $str, $prefix, $compn, $execn) = split(/\t/);
+  $pat =~ s{/}{\\/}g;
   bench("$name: compile-time", sub {eval "/$pat/"}, $compn);
   my ($rx, $rxm, $str2);
   eval "\$rx = qr/$pat/";
