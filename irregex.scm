@@ -2362,7 +2362,10 @@
            ((pair? (car ls))
             (cond
              ((string? (caar ls))       ; Enumerated character set
-              (extend-state! (lp (cdr ls) n flags next) (string->cset (caar ls))))
+              (let ((set (if (flag-set? flags ~case-insensitive?)
+                             (cset-case-insensitive (string->cset (caar ls)))
+                             (string->cset (caar ls)))))
+               (extend-state! (lp (cdr ls) n flags next) set)))
              (else
               (case (caar ls)
                 ((seq :)
