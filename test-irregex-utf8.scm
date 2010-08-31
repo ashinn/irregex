@@ -20,7 +20,6 @@
 (test-assert (irregex-search "(?u:<[あ-ん]*>)" "<あん>"))
 (test-assert (irregex-search "(?u:<[あ-ん]*>)" "<ひらがな>"))
 (test-assert (not (irregex-search "(?u:<[あ-ん]*>)" "<ひらgがな>")))
+(test-assert (not (irregex-search "(?u:<[^あ-ん語]*>)" "<語>")))
 
 (test-end)
-
-

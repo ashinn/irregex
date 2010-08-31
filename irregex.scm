@@ -3511,7 +3511,9 @@
              (lp (sre-alternate (cdr sre)) #t))
             (else
              (error "not a valid sre char-set operator" sre)))))
-     ((char? sre) (rec (list (string sre))))
+     ((char? sre) (if ci?
+                      (cset-case-insensitive (range->cset sre sre))
+                      (range->cset sre sre)))
      ((string? sre) (rec (list sre)))
      (else
       (let ((cell (assq sre sre-named-definitions)))
