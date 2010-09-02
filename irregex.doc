@@ -367,6 +367,10 @@ You can use \q{w/case} to switch back to case-sensitivity inside a
 
   \q{(irregex-search '(w/nocase "small" (w/case "big")) "smallBIGsmall") => #f}
 
+\b{Important:} characters outside the ASCII range are only matched
+case insensitively if the host Scheme system natively supports UTF8 in
+strings.
+
 Of course, literal strings by themselves aren't very interesting
 regular expressions, so we want to be able to compose them.  The most
 basic way to do this is with the \q{seq} operator (or its abbreviation
