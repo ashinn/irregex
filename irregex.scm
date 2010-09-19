@@ -1117,65 +1117,45 @@
   (let* ((end (string-length str))
          (invert? (and (< start end) (eqv? #\^ (string-ref str start))))
          (utf8? (flag-set? flags ~utf8?)))
-    (define (go i chars ranges)
+    (define (go i prev-char cset)
       (if (>= i end)
           (error "incomplete char set" str i end)
           (let ((c (string-ref str i)))
             (case c
               ((#\])
-               (if (and (null? chars) (null? ranges))
-                   (go (+ i 1) (cons #\] chars) ranges)
-                   (let ((ci? (flag-set? flags ~case-insensitive?))
-                         (hi-chars (if utf8? (filter high-char? chars) '()))
-                         (chars (if utf8? (remove high-char? chars) chars)))
+               (if (cset-empty? cset)
+                   (go (+ i 1) #\] (cset-adjoin cset #\]))
+                   (let ((ci? (flag-set? flags ~case-insensitive?)))
                      (list
-                      ((lambda (res)
-                         (if invert? (cons '~ res) (sre-alternate res)))
-                       (append
-                        hi-chars
-                        (if (pair? chars)
-                            (list
-                             (list (list->string
-                                    ((if ci?
-                                         cset-case-insensitive
-                                         (lambda (x) x))
-                                     (reverse chars)))))
-                            '())
-                        (if (pair? ranges)
-                            (let ((res (if ci?
-                                           (cset-case-insensitive
-                                            (plist->cset ranges))
-                                           (plist->cset ranges))))
-                              (list (cons '/ (cset->plist res))))
-                            '())))
+                      (let ((res (if ci? (cset-case-insensitive cset) cset)))
+                        (cset->sre (if invert? (cset-complement res) res)))
                       i))))
               ((#\-)
                (cond
                 ((or (= i start)
                      (and (= i (+ start 1)) (eqv? #\^ (string-ref str start)))
                      (eqv? #\] (string-ref str (+ i 1))))
-                 (go (+ i 1) (cons c chars) ranges))
-                ((null? chars)
+                 (go (+ i 1) c (cset-adjoin cset c)))
+                ((not prev-char)
                  (error "bad char-set"))
                 (else
-                 (let* ((c1 (car chars))
-                        (c2 (string-ref str (+ i 1))))
+                 (let ((char (string-ref str (+ i 1))))
                    (apply
-                    (lambda (c2 j)
-                      (if (char<? c2 c1)
-                          (error "inverted range in char-set" c1 c2)
-                          (go j (cdr chars) (cons c1 (cons c2 ranges)))))
+                    (lambda (c j)
+                      (if (char<? c prev-char)
+                          (error "inverted range in char-set" prev-char c)
+                          (go j #f (cset-union cset (range->cset prev-char c)))))
                     (cond
-                     ((and (eqv? #\\ c2) (assv c2 posix-escape-sequences))
+                     ((and (eqv? #\\ char) (assv char posix-escape-sequences))
                       => (lambda (x) (list (cdr x) (+ i 3))))
-                     ((and (eqv? #\\ c2)
+                     ((and (eqv? #\\ char)
                            (eqv? (string-ref str (+ i 2)) #\x))
                       (string-parse-hex-escape str (+ i 3) end))
-                     ((and utf8? (<= #x80 (char->integer c2) #xFF))
-                      (let ((len (utf8-start-char->length c2)))
+                     ((and utf8? (<= #x80 (char->integer char) #xFF))
+                      (let ((len (utf8-start-char->length char)))
                         (list (utf8-string-ref str (+ i 1) len) (+ i 1 len))))
                      (else
-                      (list c2 (+ i 2)))))))))
+                      (list char (+ i 2)))))))))
               ((#\[)
                (let* ((inv? (eqv? #\^ (string-ref str (+ i 1))))
                       (i2 (if inv? (+ i 2) (+ i 1))))
@@ -1184,76 +1164,45 @@
                     (let ((j (string-scan-char str #\: (+ i2 1))))
                       (if (or (not j) (not (eqv? #\] (string-ref str (+ j 1)))))
                           (error "incomplete character class" str)
-                          (let* ((cset (sre->cset
-                                        (string->symbol
-                                         (substring str (+ i2 1) j))))
-                                 (cset (if inv? (cset-complement cset) cset)))
-                            ;; REFACTORME
-                            (let split ((cset-as-plist (cset->plist cset))
-                                        (cset-single-chars '())
-                                        (cset-ranges '()))
-                              (cond
-                               ((null? cset-as-plist)
-                                (go (+ j 2)
-                                    (append cset-single-chars chars)
-                                    (append cset-ranges ranges)))
-                               ((char=? (car cset-as-plist) (cadr cset-as-plist))
-                                (split (cddr cset-as-plist)
-                                       (cons (car cset-as-plist) cset-single-chars)
-                                       cset-ranges))
-                               (else (split (cddr cset-as-plist)
-                                            cset-single-chars
-                                            (cons (car cset-as-plist)
-                                                  (cons (cadr cset-as-plist)
-                                                        cset-ranges))))))))))
+                          (let* ((class (sre->cset
+                                         (string->symbol
+                                          (substring str (+ i2 1) j))))
+                                 (class (if inv? (cset-complement class) class)))
+                            (go (+ j 2) #f (cset-union cset class))))))
                    ((#\= #\.)
                     (error "collating sequences not supported" str))
                    (else
-                    (go (+ i 1) (cons #\[ chars) ranges)))))
+                    (go (+ i 1) #\[ (cset-adjoin cset #\[))))))
               ((#\\)
                (let ((c (string-ref str (+ i 1))))
                  (case c
                    ((#\d #\D #\s #\S #\w #\W)
-                    (let ((cset (sre->cset (string->sre (string #\\ c)))))
-                      ;; REFACTORME
-                      (let split ((cset-as-plist (cset->plist cset))
-                                  (cset-single-chars '())
-                                  (cset-ranges '()))
-                        (cond
-                         ((null? cset-as-plist)
-                          (go (+ i 2)
-                              (append cset-single-chars chars)
-                              (append cset-ranges ranges)))
-                         ((char=? (car cset-as-plist) (cadr cset-as-plist))
-                          (split (cddr cset-as-plist)
-                                 (cons (car cset-as-plist) cset-single-chars)
-                                 cset-ranges))
-                         (else (split (cddr cset-as-plist)
-                                       cset-single-chars
-                                       (cons (car cset-as-plist)
-                                             (cons (cadr cset-as-plist)
-                                                   cset-ranges))))))))
+                    (go (+ i 2) #f
+                        (cset-union cset
+                                    (sre->cset (string->sre (string #\\ c))))))
                    ((#\x)
                     (apply
                      (lambda (ch j)
-                       (go j (cons ch chars) ranges))
+                       (go j ch (cset-adjoin cset ch)))
                      (string-parse-hex-escape str (+ i 2) end)))
                    (else
                     (let ((c (cond ((assv c posix-escape-sequences) => cdr)
                                    (else c))))
-                      (go (+ i 2) (cons c chars) ranges))))))
+                      (go (+ i 2) c (cset-adjoin cset c)))))))
               (else
                (if (and utf8? (<= #x80 (char->integer c) #xFF))
                    (let ((len (utf8-start-char->length c)))
                      (go (+ i len)
-                         (cons (utf8-string-ref str i len) chars)
-                         ranges))
-                   (go (+ i 1) (cons c chars) ranges)))))))
+                         (utf8-string-ref str i len)
+                         (cset-adjoin cset (utf8-string-ref str i len))))
+                   (go (+ i 1) c (cset-adjoin cset c))))))))
     (if invert?
         (go (+ start 1)
-            (if (flag-set? flags ~multi-line?) '(#\newline) '())
-            '())
-        (go start '() '()))))
+            #f
+            (if (flag-set? flags ~multi-line?)
+                (char->cset #\newline)
+                (make-cset)))
+        (go start #f (make-cset)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; UTF-8 Utilities
@@ -2323,9 +2272,8 @@
       (define (add-char-state! next ch)
         (let ((alt (char-altcase ch)))
           (if (flag-set? flags ~case-insensitive?)
-              (extend-state! next (cset-union (range->cset ch ch)
-                                              (range->cset alt alt)))
-              (extend-state! next (range->cset ch ch)))))
+              (extend-state! next (cset-union (char->cset ch) (char->cset alt)))
+              (extend-state! next (char->cset ch)))))
       (if (null? ls)
           next
           (cond
@@ -3443,6 +3391,7 @@
 
 (define (make-cset) (vector))
 (define (range->cset from to) (vector (cons from to)))
+(define (char->cset ch) (vector (cons ch ch)))
 (define (cset-empty? cs) (zero? (vector-length cs)))
 (define (maybe-cset->char cs)
   (if (and (= (vector-length cs) 1)
@@ -3478,7 +3427,7 @@
 
 (define (string->cset s)
   (fold (lambda (ch cs)
-          (cset-union (range->cset ch ch) cs))
+          (cset-adjoin cs ch))
         (make-cset)
         (string->list s)))
 
@@ -3571,6 +3520,8 @@
          (else (union-range (cdr a)
                             (cons (char-ranges-union a-range b-range) (cdr b))
                             res))))))))
+
+(define (cset-adjoin cs ch) (cset-union cs (char->cset ch)))
 
 (define (next-char c)
   (integer->char (+ (char->integer c) 1)))
