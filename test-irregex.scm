@@ -6,7 +6,8 @@
 (define (subst-matches matches subst)
   (define (submatch n)
     (if (vector? matches)
-        (irregex-match-substring matches n)
+        (and (irregex-match-valid-index? matches n)
+             (irregex-match-substring matches n))
         (list-ref matches n)))
   (and
    matches
@@ -264,42 +265,66 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (test-group "API"
-  (test-assert (irregex? (irregex "a.*b")))
-  (test-assert (irregex? (irregex '(: "a" (* any) "b"))))
-  (test-assert (not (irregex? (vector '*irregex-tag* #f #f #f #f #f #f #f))))
-  (test-assert (not (irregex? (vector #f #f #f #f #f #f #f #f #f))))
-  (test-assert (irregex-match-data? (irregex-search "a.*b" "axxxb")))
-  (test-assert (irregex-match-data? (irregex-match "a.*b" "axxxb")))
-  (test-assert (not (irregex-match-data? (vector '*irregex-match-tag* #f #f #f #f #f #f #f #f #f))))
-  (test-assert (not (irregex-match-data? (vector #f #f #f #f #f #f #f #f #f #f #f))))
-  (test 0 (irregex-num-submatches (irregex "a.*b")))
-  (test 1 (irregex-num-submatches (irregex "a(.*)b")))
-  (test 2 (irregex-num-submatches (irregex "(a(.*))b")))
-  (test 2 (irregex-num-submatches (irregex "a(.*)(b)")))
-  (test 10 (irregex-num-submatches (irregex "((((((((((a))))))))))")))
-  (test 0 (irregex-match-num-submatches (irregex-search "a.*b" "axxxb")))
-  (test 1 (irregex-match-num-submatches (irregex-search "a(.*)b" "axxxb")))
-  (test 2 (irregex-match-num-submatches (irregex-search "(a(.*))b" "axxxb")))
-  (test 2 (irregex-match-num-submatches (irregex-search "a(.*)(b)" "axxxb")))
-  (test 10 (irregex-match-num-submatches (irregex-search "((((((((((a))))))))))" "a")))
-  (test-assert
-   (irregex-match-valid-index? (irregex-search "a.*b" "axxxb") 0))
-  (test-assert
-   (not (irregex-match-valid-index? (irregex-search "a.*b" "axxxb") 1)))
-  (test-assert
-   (not (irregex-match-valid-index? (irregex-search "a.*b" "axxxb") -1)))
-  (test-assert
-   (irregex-match-valid-index? (irregex-search "a(.*)(b)" "axxxb") 0))
-  (test-assert
-   (irregex-match-valid-index? (irregex-search "a(.*)(b)" "axxxb") 1))
-  (test-assert
-   (irregex-match-valid-index? (irregex-search "a(.*)(b)" "axxxb") 2))
-  (test-assert
-   (not (irregex-match-valid-index? (irregex-search "a(.*)(b)" "axxxb") 3)))
-  (test-assert
-   (not (irregex-match-valid-index? (irregex-search "a(.*)(b)" "axxxb") -1)))
-  (test 1 (irregex-match-start-index (irregex-search "a(.*)(b)" "axxxb") 1))
-  (test 4 (irregex-match-end-index (irregex-search "a(.*)(b)" "axxxb") 1))
+  (test-group "predicates"
+    (test-assert (irregex? (irregex "a.*b")))
+    (test-assert (irregex? (irregex '(: "a" (* any) "b"))))
+    (test-assert (not (irregex? (vector '*irregex-tag* #f #f #f #f #f #f #f))))
+    (test-assert (not (irregex? (vector #f #f #f #f #f #f #f #f #f))))
+    (test-assert (irregex-match-data? (irregex-search "a.*b" "axxxb")))
+    (test-assert (irregex-match-data? (irregex-match "a.*b" "axxxb")))
+    (test-assert (not (irregex-match-data? (vector '*irregex-match-tag* #f #f #f #f #f #f #f #f #f))))
+    (test-assert (not (irregex-match-data? (vector #f #f #f #f #f #f #f #f #f #f #f)))))
+  (test-group "valid index"
+    (test-assert
+     (irregex-match-valid-index? (irregex-search "a.*b" "axxxb") 0))
+    (test-assert
+     (not (irregex-match-valid-index? (irregex-search "a.*b" "axxxb") 1)))
+    (test-assert
+     (not (irregex-match-valid-index? (irregex-search "a.*b" "axxxb") -1)))
+    (test-assert
+     (irregex-match-valid-index? (irregex-search "a(.*)|(b)" "axxx") 0))
+    (test-assert
+     (irregex-match-valid-index? (irregex-search "a(.*)|(b)" "axxx") 1))
+    (test-assert
+     (irregex-match-valid-index? (irregex-search "a(.*)|(b)" "axxx") 2))
+    (test-assert
+     (irregex-match-valid-index? (irregex-search "a(.*)|(b)" "b") 2))
+    (test-assert
+     (not (irregex-match-valid-index? (irregex-search "a(.*)(b)" "axxxb") 3)))
+    (test-assert
+     (not (irregex-match-valid-index? (irregex-search "a(.*)(b)" "axxxb") -1))))
+  (test-group "number of submatches"
+    (test 0 (irregex-num-submatches (irregex "a.*b")))
+    (test 1 (irregex-num-submatches (irregex "a(.*)b")))
+    (test 2 (irregex-num-submatches (irregex "(a(.*))b")))
+    (test 2 (irregex-num-submatches (irregex "a(.*)(b)")))
+    (test 10 (irregex-num-submatches (irregex "((((((((((a))))))))))")))
+    (test 0 (irregex-match-num-submatches (irregex-search "a.*b" "axxxb")))
+    (test 1 (irregex-match-num-submatches (irregex-search "a(.*)b" "axxxb")))
+    (test 2 (irregex-match-num-submatches (irregex-search "(a(.*))b" "axxxb")))
+    (test 2 (irregex-match-num-submatches (irregex-search "a(.*)(b)" "axxxb")))
+    (test 10 (irregex-match-num-submatches (irregex-search "((((((((((a))))))))))" "a"))))
+  (test-group "match substring"
+    (test "axxxb" (irregex-match-substring (irregex-search "a.*b" "axxxb") 0))
+    (test-error (irregex-match-substring (irregex-search "a.*b" "axxxb") 1))
+    (test "xxx" (irregex-match-substring (irregex-search "a(.*)|b" "axxx") 1))
+    (test #f (irregex-match-substring (irregex-search "a(.*)|b" "b") 1))
+    (test-error (irregex-match-substring (irregex-search "a(.*)|b" "axxx") 2))
+    (test-error (irregex-match-substring (irregex-search "a(.*)|b" "b") 2)))
+  (test-group "match start-index"
+    (test 0 (irregex-match-start-index (irregex-search "a.*b" "axxxb") 0))
+    (test-error (irregex-match-start-index (irregex-search "a.*b" "axxxb") 1))
+    (test 1 (irregex-match-start-index (irregex-search "a(.*)|b" "axxx") 1))
+    (test #f (irregex-match-start-index (irregex-search "a(.*)|b" "b") 1))
+    (test-error (irregex-match-start-index (irregex-search "a(.*)|b" "axxx") 2))
+    (test-error (irregex-match-start-index (irregex-search "a(.*)|b" "b") 2)))
+  (test-group "match end-index"
+    (test 5 (irregex-match-end-index (irregex-search "a.*b" "axxxb") 0))
+    (test-error (irregex-match-end-index (irregex-search "a.*b" "axxxb") 1))
+    (test 4 (irregex-match-end-index (irregex-search "a(.*)|b" "axxx") 1))
+    (test #f (irregex-match-end-index (irregex-search "a(.*)|b" "b") 1))
+    (test-error (irregex-match-end-index (irregex-search "a(.*)|b" "axxx") 2))
+    (test-error (irregex-match-end-index (irregex-search "a(.*)|b" "b") 2)))
   )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
