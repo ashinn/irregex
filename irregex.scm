@@ -3510,9 +3510,11 @@
       (let ((a-range (car a))
             (b-range (car b)))
         (cond
-         ((char<? (next-char (cdr a-range)) (car b-range))
+         ;; Can't use next-char here since it will cause an error if we are
+         ;; comparing a cset with the maximum character as high char.
+         ((< (+ (char->integer (cdr a-range)) 1) (char->integer (car b-range)))
           (union-range (cdr a) b (cons a-range res)))
-         ((char>? (car a-range) (next-char (cdr b-range)))
+         ((> (char->integer (car a-range)) (+ (char->integer (cdr b-range)) 1))
           (union-range (cdr b) a (cons b-range res)))
          ((char>=? (cdr a-range) (car b-range))
           (union-range (cons (char-ranges-union a-range b-range) (cdr a))
