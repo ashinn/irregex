@@ -2552,6 +2552,11 @@
         (bit (remainder i 24)))
     (not (zero? (bit-and (vector-ref mst cell) (bit-shl 1 bit))))))
 
+(define (nfa-multi-state-contains-only? mst i)
+  (let ((cell (quotient i 24))
+        (bit (remainder i 24)))
+    (= (vector-ref mst cell) (bit-shl 1 bit))))
+
 (define (nfa-multi-state-add! mst i)
   (let ((cell (quotient i 24))
         (bit (remainder i 24)))
@@ -2665,8 +2670,13 @@
   (let lp ((ls existing) (res '()))
     (cond
      ((null? ls)
-      (cond       ; First try to find a group that includes this state
-       ((find (lambda (x) (nfa-multi-state-contains? (cdr x) state)) existing) =>
+      (cond
+       ;; First try to find a group that includes *only* this state.
+       ;; TRICKY!: If it contains other states too, we will end up in trouble
+       ;; later on if the group needs to be broken up because of overlapping
+       ;; csets, since then you don't know what parts of the overlap "belong"
+       ;; to the state we are about to add or the one that was already there.
+       ((find (lambda (x) (nfa-multi-state-contains-only? (cdr x) state)) existing) =>
         (lambda (existing-state)    ; If found, merge charsets with it
           (set-car! existing-state (cset-union (car existing-state) elt))
           existing))
