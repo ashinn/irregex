@@ -154,10 +154,11 @@ searching.  That is, of all possible matches in the string,
 (leftmost).  If multiple matches are possible from that same first
 position, the longest match is returned.
 
-\subsubsection*{(irregex-match <irx> <str>)}
+\subsubsection*{(irregex-match <irx> <str> [<start> <end>])}
 
 Like \q{irregex-search}, but performs an anchored match against the
-beginning and end of the string, without searching.
+beginning and end of the substring specified by <start> and <end>,
+without searching.
 
 Examples:
 
