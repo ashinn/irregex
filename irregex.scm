@@ -3684,13 +3684,13 @@
 (define (irregex-replace irx str . o)
   (if (not (string? str)) (error "irregex-replace: not a string" str))
   (let ((m (irregex-search irx str)))
-    (and
-     m
-     (string-cat-reverse
-      (cons (substring str (%irregex-match-end-index m 0) (string-length str))
-            (append (irregex-apply-match m o)
-                    (list (substring str 0 (%irregex-match-start-index m 0)))
-                    ))))))
+    (if m
+        (string-cat-reverse
+         (cons (substring str (%irregex-match-end-index m 0) (string-length str))
+               (append (irregex-apply-match m o)
+                       (list (substring str 0 (%irregex-match-start-index m 0)))
+                       )))
+        str)))
 
 (define (irregex-replace/all irx str . o)
   (if (not (string? str)) (error "irregex-replace/all: not a string" str))

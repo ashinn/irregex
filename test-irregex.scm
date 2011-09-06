@@ -333,6 +333,8 @@
 (test-group "utils"
   (test "h*llo world"
       (irregex-replace "[aeiou]" "hello world" "*"))
+  (test "hello world"
+      (irregex-replace "[xyz]" "hello world" "*"))
   (test "h*ll* w*rld"
       (irregex-replace/all "[aeiou]" "hello world" "*"))
   (test '("bob@test.com" "fred@example.com")
