@@ -91,6 +91,12 @@
 (define (irregex-lengths x) (vector-ref x 7))
 (define (irregex-names x) (vector-ref x 8))
 
+(define (vector-copy v)
+  (let ((r (make-vector (vector-length v))))
+    (do ((i (- (vector-length v) 1) (- i 1)))
+        ((< i 0) r)
+      (vector-set! r i (vector-ref v i)))))
+
 (define (irregex-new-matches irx)
   (make-irregex-match (irregex-num-submatches irx) (irregex-names irx)))
 
@@ -100,11 +106,7 @@
     (vector-set! m i #f)))
 
 (define (irregex-copy-matches m)
-  (and (vector? m)
-       (let ((r (make-vector (vector-length m))))
-         (do ((i (- (vector-length m) 1) (- i 1)))
-             ((< i 0) r)
-           (vector-set! r i (vector-ref m i))))))
+  (and (vector? m) (vector-copy m)))
 
 (define irregex-match-tag '*irregex-match-tag*)
 
@@ -1495,6 +1497,9 @@
          (searcher? (sre-searcher? sre))
          (sre-dfa (if searcher? (sre-remove-initial-bos sre) sre))
          (dfa-limit (cond ((memq 'small o) 1) ((memq 'fast o) 50) (else 10)))
+         ;; TODO: Maybe make these two promises; if we only want to search,
+         ;; it's wasteful to compile the matcher, and vice versa
+         ;; Maybe provide a flag to compile eagerly, to help benchmarking etc.
          (dfa/search
           (cond ((memq 'backtrack o) #f)
                 (searcher? #t)
@@ -2203,11 +2208,15 @@
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;; SRE->NFA compilation
+;;;; SRE->tNFA compilation
 ;;
-;; An NFA state is a numbered node with a list of pattern->number
-;; transitions, where pattern is character set range, or epsilon
-;; (indicating an empty transition).
+;; A tagged NFA (tNFA) state is a numbered node with a list of
+;; pattern->number transitions, where pattern is character set range,
+;; or epsilon (indicating an empty transition).
+;;
+;; (Only) epsilon transitions may be *tagged*.  Each tag represents
+;; either the start or the end of a submatch.
+;;
 ;; There may be overlapping ranges - since it's an NFA we process it
 ;; by considering all possible transitions.
 
@@ -2217,8 +2226,11 @@
 (define (nfa-num-states nfa) (quotient (vector-length nfa) *nfa-num-fields*))
 (define (nfa-start-state nfa) (- (nfa-num-states nfa) 1))
 
+(define (nfa-num-tags nfa)
+  (vector-ref nfa 0))
+
 (define (nfa-get-state-trans nfa i)
-  (vector-ref nfa (* i *nfa-num-fields*)))
+  (if (= i 0) '() (vector-ref nfa (* i *nfa-num-fields*))))
 (define (nfa-set-state-trans! nfa i x)
   (vector-set! nfa (* i *nfa-num-fields*) x))
 
@@ -2226,10 +2238,10 @@
   (vector-ref nfa (+ (* i *nfa-num-fields*) 1)))
 (define (nfa-set-epsilons! nfa i x)
   (vector-set! nfa (+ (* i *nfa-num-fields*) 1) x))
-(define (nfa-add-epsilon! nfa i x)
+(define (nfa-add-epsilon! nfa i x t)
   (let ((eps (nfa-get-epsilons nfa i)))
-    (if (not (memq x eps))
-        (nfa-set-epsilons! nfa i (cons x eps)))))
+    (if (not (assv x eps))
+        (nfa-set-epsilons! nfa i (cons (cons x t) eps)))))
 
 (define (nfa-get-state-closure nfa i)
   (vector-ref nfa (+ (* i *nfa-num-fields*) 2)))
@@ -2254,7 +2266,25 @@
 ;; descending numeric order, with state 0 being the unique accepting
 ;; state.
 (define (sre->nfa sre init-flags)
-  (let ((buf (make-vector (* *nfa-presize* *nfa-num-fields*) '())))
+  (let* ((buf (make-vector (* *nfa-presize* *nfa-num-fields*) '()))
+         ;; Get cons cells and map them to numeric submatch indexes.
+         ;; Doing it here is slightly easier than integrating into the loop below
+         (match-index
+          (let lp ((sre (list sre)) (max 0) (res '()))
+            (cond
+             ((not (pair? sre))
+              ;; We abuse the transitions slot for state 0 (the final state,
+              ;; which can have no transitions) to store the number of tags.
+              (vector-set! buf 0 (* max 2))
+              res)
+             ((pair? (car sre))
+              ;; The appends here should be safe (are they?)
+              (case (caar sre)
+                (($ submatch => submatch-named)
+                 (lp (append (cdar sre) (cdr sre)) (+ max 1)
+                     (cons (cons (car sre) max) res)))
+                (else (lp (append (car sre) (cdr sre)) max res))))
+             (else (lp (cdr sre) max res))))))
     ;; we loop over an implicit sequence list
     (define (lp ls n flags next)
       (define (new-state-number state)
@@ -2284,7 +2314,7 @@
             (let ((next (lp (cdr ls) n flags next)))
               (and next
                    (let ((new (add-state! (new-state-number next) '())))
-                     (nfa-add-epsilon! buf new next)
+                     (nfa-add-epsilon! buf new next #f)
                      new))))
            ((string? (car ls))
             ;; process literal strings a char at a time
@@ -2358,8 +2388,8 @@
                           (and a
                                (let ((c (add-state! (new-state-number a)
                                                     '())))
-                                 (nfa-add-epsilon! buf c a)
-                                 (nfa-add-epsilon! buf c b)
+                                 (nfa-add-epsilon! buf c a #f)
+                                 (nfa-add-epsilon! buf c b #f)
                                  c)))))))
                 ((?)
                  (let ((next (lp (cdr ls) n flags next)))
@@ -2368,7 +2398,7 @@
                     next
                     (let ((a (lp (cdar ls) (new-state-number next) flags next)))
                       (if a
-                          (nfa-add-epsilon! buf a next))
+                          (nfa-add-epsilon! buf a next #f))
                       a))))
                 ((+ *)
                  (let ((next (lp (cdr ls) n flags next)))
@@ -2383,9 +2413,9 @@
                        (a
                         ;; for *, insert an epsilon transition as in ? above
                         (if (eq? '* (caar ls))
-                            (nfa-add-epsilon! buf a new))
+                            (nfa-add-epsilon! buf a new #f))
                         ;; for both, insert a loop back to self
-                        (nfa-add-epsilon! buf new a)))
+                        (nfa-add-epsilon! buf new a #f)))
                       a))))
                 ;; need to add these to the match extractor first,
                 ;; but they tend to generate large DFAs
@@ -2414,9 +2444,31 @@
                 ;;     n flags next))
                 ;; ignore submatches altogether
                 (($ submatch)
-                 (lp (cons (sre-sequence (cdar ls)) (cdr ls)) n flags next))
+                 (let* ((pre-tag (* (cdr (assq (car ls) match-index)) 2))
+                        (post-tag (+ pre-tag 1))
+                        (next (lp (cdr ls) n flags next)))
+                   (and next
+                        (let* ((after (add-state! (new-state-number next) '()))
+                               (sub (lp (list (sre-sequence (cdar ls)))
+                                        (new-state-number after) flags after))
+                               (before (and sub (add-state! (new-state-number sub) '()))))
+                          (cond (before
+                                 (nfa-add-epsilon! buf before sub pre-tag)
+                                 (nfa-add-epsilon! buf after next post-tag)))
+                          before))))
                 ((=> submatch-named)
-                 (lp (cons (sre-sequence (cddar ls)) (cdr ls)) n flags next))
+                 (let* ((pre-tag (* (cdr (assq (car ls) match-index)) 2))
+                        (post-tag (+ pre-tag 1))
+                        (next (lp (cdr ls) n flags next)))
+                   (and next
+                        (let* ((after (add-state! (new-state-number next) '()))
+                               (sub (lp (list (sre-sequence (cddar ls)))
+                                        (new-state-number after) flags after))
+                               (before (and sub (add-state! (new-state-number sub) '()))))
+                          (cond (before
+                                 (nfa-add-epsilon! buf before sub pre-tag)
+                                 (nfa-add-epsilon! buf after next post-tag)))
+                          before))))
                 (else
                  (cond
                   ((assq (caar ls) sre-named-definitions)
@@ -2441,19 +2493,23 @@
 ;; sre->nfa conversion.
 
 ;; (define (nfa-match nfa str)
-;;   (let lp ((ls (string->list str)) (state (car nfa)) (epsilons '()))
-;;     (if (null? ls)
-;;         (zero? (car state))
-;;         (any (lambda (m)
-;;                (if (eq? 'epsilon (car m))
-;;                    (and (not (memv (cdr m) epsilons))
-;;                         (lp ls (assv (cdr m) nfa) (cons (cdr m) epsilons)))
-;;                    (and (or (eqv? (car m) (car ls))
-;;                             (and (pair? (car m))
-;;                                  (char<=? (caar m) (car ls))
-;;                                  (char<=? (car ls) (cdar m))))
-;;                         (lp (cdr ls) (assv (cdr m) nfa) '()))))
-;;              (cdr state)))))
+;;   (let ((matches (make-vector (nfa-num-tags nfa) #f)))
+;;     (let lp ((pos 0) (ls (string->list str)) (state (nfa-start-state nfa)) (epsilons '()))
+;;       (and (or (and (null? ls) (zero? state))
+;;                (let ((t (nfa-get-state-trans nfa state)))
+;;                  (and (not (null? t)) (not (null? ls))
+;;                       (cset-contains? (car t) (car ls))
+;;                       (lp (+ pos 1) (cdr ls) (cdr t) '())))
+;;                (any (lambda (e)
+;;                       (let ((old-matches (vector-copy matches)))
+;;                         (cond ((cdr e)
+;;                                (vector-set! matches (cdr e) pos)))
+;;                         (or (and (not (memv (car e) epsilons))
+;;                                  (lp pos ls (car e) (cons (car e) epsilons)))
+;;                             ;; reset match, apparently this branch failed
+;;                             (begin (set! matches old-matches) #f))))
+;;                     (nfa-get-epsilons nfa state)))
+;;            matches))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; NFA multi-state representation
@@ -2729,7 +2785,8 @@
      ((nfa-multi-state-contains? res (car ls))
       (lp (cdr ls) res))
      (else
-      (lp (append (nfa-get-epsilons nfa (car ls)) (cdr ls))
+      ;; Ignore any epsilon tags for now
+      (lp (append (map car (nfa-get-epsilons nfa (car ls))) (cdr ls))
           (nfa-multi-state-add! res (car ls)))))))
 
 (define (nfa-closure-internal nfa states)
