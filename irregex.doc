@@ -850,5 +850,11 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 \bibitem{PCRE} Philip Hazel
 \urlh{http://www.pcre.org/}{PCRE - Perl Compatible Regular Expressions}
 
+\bibitem{tNFAs} Ville Laurikari
+\urlh{http://laurikari.net/ville/spire2000-tnfa.pdf}{NFAs with Tagged Transitions, their Conversion to Deterministic Automata and Application to Regular Expressions}
+
+\bibitem{RegexpSubmatches} Ville Laurikari
+\urlh{http://laurikari.net/ville/regex-submatch.pdf}{Efficient submatch addressing for regular expressions}
+
 \eval(display "<br /><br /><br /><br />\n")
 
