@@ -1400,7 +1400,7 @@
            (map (lambda (_)
                   `(/ ,(integer->char #x80) ,(integer->char #xFF)))
                 (zero-to (+ i lo-len))))))
-       (zero-to (- (length hi-ls) lo-len 1)))
+       (zero-to (- (length hi-ls) (+ lo-len 1))))
       (list
        (sre-sequence
         (cons `(/ ,(integer->char
@@ -3645,10 +3645,13 @@
                     matches)))
             (if (not m)
                 (finish i acc)
-                (let* ((end (%irregex-match-end-index m 0))
-                       (acc (kons i m acc)))
-                  (irregex-reset-matches! matches)
-                  (lp end acc))))))))
+                (let ((end (%irregex-match-end-index m 0)))
+                  (if (= end i)
+                      ;; skip one char forward if we match the empty string
+                      (lp (+ end 1) acc)
+                      (let ((acc (kons i m acc)))
+                        (irregex-reset-matches! matches)
+                        (lp end acc))))))))))
 
 (define (irregex-fold irx kons . args)
   (if (not (procedure? kons)) (error "irregex-fold: not a procedure" kons))
@@ -3670,11 +3673,16 @@
           (let ((m (irregex-search/matches irx cnk start i matches)))
             (if (not m)
                 (finish start i acc)
-                (let* ((acc (kons start i m acc))
-                       (end-src (%irregex-match-end-chunk m 0))
-                       (end-index (%irregex-match-end-index m 0)))
-                  (irregex-reset-matches! matches)
-                  (lp end-src end-index acc))))))))
+                (let ((end-src (%irregex-match-end-chunk m 0))
+                      (end-index (%irregex-match-end-index m 0)))
+                  (if (and (eq? end-src start) (= end-index i))
+                      (if (>= end-index ((chunker-get-end cnk) end-src ))
+                          (let ((next ((chunker-get-next cnk) end-src)))
+                            (lp next ((chunker-get-start cnk) next) acc))
+                          (lp end-src (+ end-index 1) acc))
+                      (let ((acc (kons start i m acc)))
+                        (irregex-reset-matches! matches)
+                        (lp end-src end-index acc))))))))))
 
 (define (irregex-fold/chunked irx kons . args)
   (if (not (procedure? kons)) (error "irregex-fold/chunked: not a procedure" kons))
