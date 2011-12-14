@@ -1,6 +1,6 @@
 
 (use chicken extras regex data-structures srfi-13)
-(load "../irregex")
+(include "../irregex")
 
 (define-syntax time-expr
   (syntax-rules ()

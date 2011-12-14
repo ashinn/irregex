@@ -96,6 +96,7 @@ ab*	xayabbbz	y	&	a
 (abc|)ef	abcdef	y	&-\1	ef-
 (a|b)c*d	abcd	y	&-\1	bcd-b
 (ab|ab*)bc	abc	y	&-\1	abc-a
+(?:(a)b|ac)	ac	y	&-\1	ac-
 a([bc]*)c*	abc	y	&-\1	abc-bc
 a([bc]*)(c*d)	abcd	y	&-\1-\2	abcd-bc-d
 a([bc]+)(c*d)	abcd	y	&-\1-\2	abcd-bc-d
