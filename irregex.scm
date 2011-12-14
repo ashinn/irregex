@@ -72,24 +72,21 @@
 
 (define irregex-tag '*irregex-tag*)
 
-(define (make-irregex dfa dfa/search dfa/extract nfa flags
-                      submatches lengths names)
-  (vector irregex-tag dfa dfa/search dfa/extract nfa flags
-          submatches lengths names))
+(define (make-irregex dfa dfa/search nfa flags submatches lengths names)
+  (vector irregex-tag dfa dfa/search nfa flags submatches lengths names))
 
 (define (irregex? obj)
   (and (vector? obj)
-       (= 9 (vector-length obj))
+       (= 8 (vector-length obj))
        (eq? irregex-tag (vector-ref obj 0))))
 
 (define (irregex-dfa x) (vector-ref x 1))
 (define (irregex-dfa/search x) (vector-ref x 2))
-(define (irregex-dfa/extract x) (vector-ref x 3))
-(define (irregex-nfa x) (vector-ref x 4))
-(define (irregex-flags x) (vector-ref x 5))
-(define (irregex-num-submatches x) (vector-ref x 6))
-(define (irregex-lengths x) (vector-ref x 7))
-(define (irregex-names x) (vector-ref x 8))
+(define (irregex-nfa x) (vector-ref x 3))
+(define (irregex-flags x) (vector-ref x 4))
+(define (irregex-num-submatches x) (vector-ref x 5))
+(define (irregex-lengths x) (vector-ref x 6))
+(define (irregex-names x) (vector-ref x 7))
 
 (define (vector-copy v)
   (let ((r (make-vector (vector-length v))))
@@ -1512,8 +1509,6 @@
                           (nfa->dfa nfa (* dfa-limit (nfa-num-states nfa)))))
                     (else #f)))
          (submatches (sre-count-submatches sre-dfa))
-         (extractor
-          (and dfa dfa/search (sre-match-extractor sre-dfa submatches)))
          (names (sre-names sre-dfa 1 '()))
          (lens (sre-length-ranges sre-dfa names))
          (flags (flag-join
@@ -1521,10 +1516,10 @@
                  (and (sre-consumer? sre) ~consumer?))))
     (cond
      (dfa
-      (make-irregex dfa dfa/search extractor #f flags submatches lens names))
+      (make-irregex dfa dfa/search #f flags submatches lens names))
      (else
       (let ((f (sre->procedure sre pat-flags names)))
-        (make-irregex #f #f #f f flags submatches lens names))))))
+        (make-irregex #f #f f flags submatches lens names))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; SRE Analysis
@@ -1869,11 +1864,6 @@
        ((dfa-match/longest (irregex-dfa irx) cnk src i #f #f matches 0)
         (irregex-match-start-chunk-set! matches 0 src)
         (irregex-match-start-index-set! matches 0 i)
-        ((irregex-dfa/extract irx)
-         cnk src i
-         (%irregex-match-end-chunk matches 0)
-         (%irregex-match-end-index matches 0)
-         matches)
         matches)
        (else
         #f)))
@@ -1890,11 +1880,6 @@
                ((dfa-match/longest dfa cnk src i #f #f matches 0)
                 (irregex-match-start-chunk-set! matches 0 src)
                 (irregex-match-start-index-set! matches 0 i)
-                ((irregex-dfa/extract irx)
-                 cnk src i
-                 (%irregex-match-end-chunk matches 0)
-                 (%irregex-match-end-index matches 0)
-                 matches)
                 matches)
                ((>= i end)
                 (let ((next (get-next src)))
@@ -1964,11 +1949,6 @@
          (irregex-match-start-index-set! matches
                                          0
                                          ((chunker-get-start cnk) src))
-         ((irregex-dfa/extract irx)
-          cnk src ((chunker-get-start cnk) src)
-          (%irregex-match-end-chunk matches 0)
-          (%irregex-match-end-index matches 0)
-          matches)
          matches)))
      (else
       (let* ((matcher (irregex-nfa irx))
@@ -2001,8 +1981,10 @@
 (define (dfa-init-state dfa)
   (vector-ref dfa 0))
 (define (dfa-next-state dfa node)
-  (vector-ref dfa (cdr node)))
-(define (dfa-final-state? dfa state)
+  (vector-ref dfa (cadr node)))
+(define (dfa-cell-commands dfa node)
+  (cddr node))
+(define (dfa-finalizer dfa state)
   (car state))
 
 ;; this searches for the first end index for which a match is possible
@@ -2010,15 +1992,17 @@
   (let ((get-str (chunker-get-str cnk))
         (get-start (chunker-get-start cnk))
         (get-end (chunker-get-end cnk))
-        (get-next (chunker-get-next cnk)))
-    (let lp1 ((src src) (start start) (state (dfa-init-state dfa)))
+        (get-next (chunker-get-next cnk))
+        ;; Skip the "set-up" state, we don't need to set tags.
+        (start-state (dfa-next-state dfa (cadr (dfa-init-state dfa)))))
+    (let lp1 ((src src) (start start) (state start-state))
       (and
        src
        (let ((str (get-str src))
              (end (get-end src)))
          (let lp2 ((i start) (state state))
            (cond
-            ((dfa-final-state? dfa state)
+            ((dfa-finalizer dfa state)
              (cond
               (index
                (irregex-match-end-chunk-set! matches index src)
@@ -2036,28 +2020,59 @@
              (let ((next (get-next src)))
                (and next (lp1 next (get-start next) state)))))))))))
 
+(define (finalize! finalizer memory matches)
+  (for-each
+   (lambda (tag&slot)
+     (let* ((tag (car tag&slot))
+            (slot (vector-ref memory (cdr tag&slot)))
+            (chunk&pos (vector-ref slot tag)))
+       ;; DFA tags start at 0 but real tags start at 1. That's why we add 7 & 8
+       (vector-set! matches (+ 7 (* 2 tag)) (and chunk&pos (car chunk&pos)))
+       (vector-set! matches (+ 8 (* 2 tag)) (and chunk&pos (cdr chunk&pos)))))
+   finalizer))
+(define (make-initial-memory slots matches)
+  (let ((size (* (irregex-match-num-submatches matches) 2))
+        (memory (make-vector slots)))
+    (do ((i 0 (+ i 1)))
+        ((= i slots) memory)
+      (vector-set! memory i (make-vector size #f)))))
+
 ;; this finds the longest match starting at a given index
 (define (dfa-match/longest dfa cnk src start end-src end matches index)
-  (let ((get-str (chunker-get-str cnk))
-        (get-start (chunker-get-start cnk))
-        (get-end (chunker-get-end cnk))
-        (get-next (chunker-get-next cnk))
-        (start-is-final? (dfa-final-state? dfa (dfa-init-state dfa))))
+  (let* ((get-str (chunker-get-str cnk))
+         (get-start (chunker-get-start cnk))
+         (get-end (chunker-get-end cnk))
+         (get-next (chunker-get-next cnk))
+         (initial-state (dfa-init-state dfa))
+         (memory-size (car initial-state))
+         (submatches? (not (zero? memory-size)))
+         ;; A vector of vectors, each of size <number of start/end submatches>
+         (memory (make-initial-memory memory-size matches))
+         (init-cell (cadr initial-state))
+         (start-state (dfa-next-state dfa init-cell))
+         (start-finalizer (dfa-finalizer dfa start-state)))
     (cond
      (index
       (irregex-match-end-chunk-set! matches index #f)
       (irregex-match-end-index-set! matches index #f)))
+    (cond (submatches?
+           (for-each (lambda (s)
+                       (let ((slot (vector-ref memory (cdr s))))
+                         (vector-set! slot (car s) (cons src start))))
+                     (cdr (dfa-cell-commands dfa init-cell)))))
     (let lp1 ((src src)
               (start start)
-              (state (dfa-init-state dfa))
-              (res-src (and start-is-final? src))
-              (res-index (and start-is-final? start)))
+              (state start-state)
+              (res-src (and start-finalizer src))
+              (res-index (and start-finalizer start))
+              (finalizer start-finalizer))
       (let ((str (get-str src))
             (end (if (eq? src end-src) end (get-end src))))
         (let lp2 ((i start)
                   (state state)
                   (res-src res-src)
-                  (res-index res-index))
+                  (res-index res-index)
+                  (finalizer finalizer))
           (cond
            ((>= i end)
             (cond
@@ -2066,9 +2081,11 @@
               (irregex-match-end-index-set! matches index res-index)))
             (let ((next (and (not (eq? src end-src)) (get-next src))))
               (if next
-                  (lp1 next (get-start next) state res-src res-index)
+                  (lp1 next (get-start next) state res-src res-index finalizer)
                   (and index
                        (%irregex-match-end-chunk matches index)
+                       (or (not submatches?)
+                           (finalize! finalizer memory matches))
                        #t))))
            (else
             (let* ((ch (string-ref str i))
@@ -2079,17 +2096,37 @@
                                (cdr state))))
               (cond
                (cell
+                (cond
+                 (submatches?
+                  (let ((cmds (dfa-cell-commands dfa cell)))
+                    (for-each (lambda (s)
+                                (let ((slot (vector-ref memory (cdr s)))
+                                      (chunk&position (cons src (+ i 1))))
+                                  (vector-set! slot (car s) chunk&position)))
+                              (cdr cmds))
+                    (for-each (lambda (c)
+                                (let* ((tag (vector-ref c 0))
+                                       (ss (vector-ref memory (vector-ref c 1)))
+                                       (ds (vector-ref memory (vector-ref c 2))))
+                                  (vector-set! ds tag (vector-ref ss tag))))
+                              (car cmds)))))
                 (let ((next (dfa-next-state dfa cell)))
-                  (if (dfa-final-state? dfa next)
-                      (lp2 (+ i 1) next src (+ i 1))
-                      (lp2 (+ i 1) next res-src res-index))))
+                 (cond
+                  ((dfa-finalizer dfa next) =>
+                   (lambda (new-finalizer)
+                     (lp2 (+ i 1) next src (+ i 1) new-finalizer)))
+                  (else (lp2 (+ i 1) next res-src res-index finalizer)))))
                (res-src
                 (cond
                  (index
                   (irregex-match-end-chunk-set! matches index res-src)
                   (irregex-match-end-index-set! matches index res-index)))
+                (cond (submatches?
+                       (finalize! finalizer memory matches)))
                 #t)
                ((and index (%irregex-match-end-chunk matches index))
+                (cond (submatches?
+                       (finalize! finalizer memory matches)))
                 #t)
                (else
                 #f))))))))))
@@ -2228,6 +2265,10 @@
 
 (define (nfa-num-tags nfa)
   (vector-ref nfa 0))
+(define (nfa-highest-map-index nfa)
+  (vector-ref nfa 1))
+(define (nfa-set-highest-map-index! nfa idx)
+  (vector-set! nfa 1 idx))
 
 (define (nfa-get-state-trans nfa i)
   (if (= i 0) '() (vector-ref nfa (* i *nfa-num-fields*))))
@@ -2235,7 +2276,7 @@
   (vector-set! nfa (* i *nfa-num-fields*) x))
 
 (define (nfa-get-epsilons nfa i)
-  (vector-ref nfa (+ (* i *nfa-num-fields*) 1)))
+  (if (= i 0) '() (vector-ref nfa (+ (* i *nfa-num-fields*) 1))))
 (define (nfa-set-epsilons! nfa i x)
   (vector-set! nfa (+ (* i *nfa-num-fields*) 1) x))
 (define (nfa-add-epsilon! nfa i x t)
@@ -2243,21 +2284,24 @@
     (if (not (assv x eps))
         (nfa-set-epsilons! nfa i (cons (cons x t) eps)))))
 
-(define (nfa-get-state-closure nfa i)
-  (vector-ref nfa (+ (* i *nfa-num-fields*) 2)))
-(define (nfa-set-state-closure! nfa i x)
-  (vector-set! nfa (+ (* i *nfa-num-fields*) 2) x))
+(define (nfa-get-reorder-commands nfa mst)
+  (cond ((assoc mst
+                (vector-ref nfa (+ (* (nfa-multi-state-hash nfa mst)
+                                      *nfa-num-fields*) 2)))
+         => cdr)
+        (else #f)))
+(define (nfa-set-reorder-commands! nfa mst x)
+  (let ((i (+ (* (nfa-multi-state-hash nfa mst) *nfa-num-fields*) 2)))
+    (vector-set! nfa i (cons (cons mst x) (vector-ref nfa i)))))
 
 (define (nfa-get-closure nfa mst)
   (cond ((assoc mst
                 (vector-ref nfa (+ (* (nfa-multi-state-hash nfa mst)
-                                      *nfa-num-fields*)
-                                   (- *nfa-num-fields* 1))))
+                                      *nfa-num-fields*) 3)))
          => cdr)
         (else #f)))
 (define (nfa-add-closure! nfa mst x)
-  (let ((i (+ (* (nfa-multi-state-hash nfa mst) *nfa-num-fields*)
-              (- *nfa-num-fields* 1))))
+  (let ((i (+ (* (nfa-multi-state-hash nfa mst) *nfa-num-fields*) 3)))
     (vector-set! nfa i (cons (cons mst x) (vector-ref nfa i)))))
 
 ;; Compile and return the vector of NFA states (in groups of
@@ -2276,6 +2320,9 @@
               ;; We abuse the transitions slot for state 0 (the final state,
               ;; which can have no transitions) to store the number of tags.
               (vector-set! buf 0 (* max 2))
+              ;; We abuse the epsilons slot for state 0 to store the highest
+              ;; encountered memory slot mapping index.  Initialize to -1.
+              (vector-set! buf 1 -1)
               res)
              ((pair? (car sre))
               ;; The appends here should be safe (are they?)
@@ -2514,441 +2561,401 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; NFA multi-state representation
 
-;; Cache closures in a simple hash-table keyed on the smallest state
-;; (define (nfa-multi-state-hash nfa mst)
-;;   (car mst))
-
-;; Original sorted list-based representation
-
-;; (define (make-nfa-multi-state nfa)
-;;   '())
-
-;; (define (nfa-state->multi-state nfa state)
-;;   (list state))
-
-;; (define (nfa-multi-state-copy mst)
-;;   (map (lambda (x) x) mst))
-
-;; (define (list->nfa-multi-state nfa ls)
-;;   (nfa-multi-state-copy ls))
-
-;; (define (nfa-multi-state-contains? mst i)
-;;   (memq i mst))
-
-;; (define (nfa-multi-state-fold mst kons knil)
-;;   (fold kons knil mst))
-
-;; (define (nfa-multi-state-add! mst i)
-;;   (insert-sorted i mst))
-
-;; (define (nfa-multi-state-add mst i)
-;;   (insert-sorted i mst))
-
-;; (define (nfa-multi-state-union a b)
-;;   (merge-sorted a b))
-
-;; Sorted List Utilities
-
-;; (define (insert-sorted n ls)
-;;   (cond
-;;    ((null? ls)
-;;     (cons n '()))
-;;    ((<= n (car ls))
-;;     (if (= n (car ls))
-;;         ls
-;;         (cons n ls)))
-;;    (else
-;;     (cons (car ls) (insert-sorted n (cdr ls))))))
-
-;; (define (insert-sorted! n ls)
-;;   (cond
-;;    ((null? ls)
-;;     (cons n '()))
-;;    ((<= n (car ls))
-;;     (if (= n (car ls))
-;;         ls
-;;         (cons n ls)))
-;;    (else
-;;     (let lp ((head ls) (tail (cdr ls)))
-;;       (cond ((or (null? tail) (< n (car tail)))
-;;              (set-cdr! head (cons n tail)))
-;;             ((> n (car tail))
-;;              (lp tail (cdr tail)))))
-;;     ls)))
-
-;; (define (merge-sorted a b)
-;;   (cond ((null? a) b)
-;;         ((null? b) a)
-;;         ((< (car a) (car b))
-;;          (cons (car a) (merge-sorted (cdr a) b)))
-;;         ((> (car a) (car b))
-;;          (cons (car b) (merge-sorted a (cdr b))))
-;;         (else (merge-sorted (cdr a) b))))
-
-;; ========================================================= ;;
-
-;; Presized bit-vector based
-
 (define (nfa-multi-state-hash nfa mst)
-  (modulo (vector-ref mst 0) (nfa-num-states nfa)))
+  ;; We could do (modulo X (nfa-num-states nfa)) here which would be faster,
+  ;; but we can't assume a full numerical tower (and updating *could*
+  ;; produce a bignum), so we do it each time when updating the hash.
+  (vector-ref mst 2))
+
+;; Returns #f if NFA state does not occur in multi-state
+(define (nfa-state-mappings mst state)
+  (vector-ref mst (+ state 3)))
+
+(define (nfa-multi-state-mappings-summary mst)
+  (vector-ref mst 0))
+
+;; A multi-state holds a set of states with their tag-to-slot mappings.
+;; Slot 0 contains a summary of all mappings for all states in the multi-state.
+;; Slot 1 contains the total number of states in the multi-state.
+;; Slot 2 contains a hash value, which is used for quick lookup of cached
+;; reorder-commands or epsilon-closure in the NFA.  This is the sum of all
+;; state numbers plus each tag value (once per occurrence).  This is a silly
+;; hashing calculation, but it seems to produce a well-spread out hash table and
+;; it has the added advantage that we can use the value as a quick check if the
+;; state is definitely NOT equivalent to another in nfa-multi-state-same-states?
+;; The other slots contain mappings for each corresponding state.
 
 (define (make-nfa-multi-state nfa)
-  (make-vector (quotient (+ (nfa-num-states nfa) 24 -1) 24) 0))
-
-(define (nfa-state->multi-state nfa state)
-  (nfa-multi-state-add! (make-nfa-multi-state nfa) state))
-
-(define (nfa-multi-state-copy mst)
-  (let ((res (make-vector (vector-length mst))))
-    (do ((i (- (vector-length mst) 1) (- i 1)))
-        ((< i 0) res)
-      (vector-set! res i (vector-ref mst i)))))
-
-(define (nfa-multi-state-contains? mst i)
-  (let ((cell (quotient i 24))
-        (bit (remainder i 24)))
-    (not (zero? (bit-and (vector-ref mst cell) (bit-shl 1 bit))))))
-
-(define (nfa-multi-state-contains-only? mst i)
-  (let ((cell (quotient i 24))
-        (bit (remainder i 24)))
-    (= (vector-ref mst cell) (bit-shl 1 bit))))
-
-(define (nfa-multi-state-add! mst i)
-  (let ((cell (quotient i 24))
-        (bit (remainder i 24)))
-    (vector-set! mst cell (bit-ior (vector-ref mst cell) (bit-shl 1 bit)))
+  (let ((mst (make-vector (+ (nfa-num-states nfa) 3) #f)))
+    (vector-set! mst 0 (make-vector (nfa-num-tags nfa) '())) ; tag summary
+    (vector-set! mst 1 0)               ; total number of states
+    (vector-set! mst 2 0)               ; states and tags hash
     mst))
 
-(define (nfa-multi-state-add mst i)
-  (nfa-multi-state-add! (nfa-multi-state-copy mst) i))
+;; NOTE: This doesn't do a deep copy of the mappings.  Don't mutate them!
+(define (nfa-multi-state-copy mst)
+  (let ((v (vector-copy mst)))
+    (vector-set! v 0 (vector-copy (vector-ref mst 0)))
+    v))
 
-(define (nfa-multi-state-union! a b)
-  (do ((i (- (vector-length a) 1) (- i 1)))
-      ((< i 0) a)
-    (vector-set! a i (bit-ior (vector-ref a i) (vector-ref b i)))))
+(define (nfa-state->multi-state nfa state mappings)
+  (let ((mst (make-nfa-multi-state nfa)))
+    (nfa-multi-state-add! nfa mst state mappings)
+    mst))
 
-(define (nfa-multi-state-union a b)
-  (nfa-multi-state-union! (nfa-multi-state-copy a) b))
+;; Extend multi-state with a state and add its tag->slot mappings.
+(define (nfa-multi-state-add! nfa mst state mappings)
+  (let ((hash-value (vector-ref mst 2)))
+    (cond ((not (vector-ref mst (+ state 3))) ;  Update state hash & count?
+           (set! hash-value (+ (vector-ref mst 2) state))
+           (vector-set! mst 1 (+ (vector-ref mst 1) 1))))
+    (vector-set! mst (+ state 3) mappings)
+    (let ((all-mappings (vector-ref mst 0)))
+      (for-each
+       (lambda (tag&slot)
+         (let* ((t (car tag&slot))
+                (s (cdr tag&slot))
+                (m (vector-ref all-mappings t)))
+           (cond ((not (memv s m))
+                  (set! hash-value (+ hash-value t))
+                  (vector-set! all-mappings t (cons s m))))))
+       mappings))
+    (vector-set! mst 2 (modulo hash-value (nfa-num-states nfa)))))
+
+;; Same as above, but skip updating mappings summary.
+;; Called when we know all the tag->slot mappings are already in the summary.
+(define (nfa-multi-state-add/fast! nfa mst state mappings)
+  (cond ((not (vector-ref mst (+ state 3))) ;  Update state hash & count?
+         (vector-set! mst 2 (modulo (+ (vector-ref mst 2) state)
+                                    (nfa-num-states nfa)))
+         (vector-set! mst 1 (+ (vector-ref mst 1) 1))))
+  (vector-set! mst (+ state 3) mappings))
+
+;; Same as above, assigning a new slot for a tag.  This slot is then
+;; added to the summary, if it isn't in there yet.  This is more efficient
+;; than looping through all the mappings.
+(define (nfa-multi-state-add-tagged! nfa mst state mappings tag slot)
+  (let* ((mappings-summary (vector-ref mst 0))
+         (summary-tag-slots (vector-ref mappings-summary tag))
+         (new-mappings (let lp ((m mappings)
+                                (res '()))
+                         (cond ((null? m) (cons (cons tag slot) res))
+                               ((= (caar m) tag)
+                                (append res (cons (cons tag slot) (cdr m))))
+                               (else (lp (cdr m) (cons (car m) res))))))
+         (hash-value (vector-ref mst 2)))
+    (cond ((not (vector-ref mst (+ state 3))) ;  Update state hash & count?
+           (set! hash-value (+ hash-value state))
+           (vector-set! mst 1 (+ (vector-ref mst 1) 1))))
+    (vector-set! mst (+ state 3) new-mappings)
+    (cond ((not (memv slot summary-tag-slots)) ; Update tag/slot summary
+           (set! hash-value (+ hash-value tag))
+           (vector-set! mappings-summary tag (cons slot summary-tag-slots))))
+    (vector-set! mst 2 (modulo hash-value (nfa-num-states nfa)))
+    new-mappings))
+
+(define (nfa-multi-state-same-states? a b)
+  ;; First check if hash and state counts match, then check each state
+  (and (= (vector-ref a 2) (vector-ref b 2))
+       (= (vector-ref a 1) (vector-ref b 1))
+       (let ((len (vector-length a)))
+         (let lp ((i 3))
+           (or (= i len)
+               (and (equal? (not (vector-ref a i))
+                            (not (vector-ref b i)))
+                    (lp (+ i 1))))))))
 
 (define (nfa-multi-state-fold mst kons knil)
   (let ((limit (vector-length mst)))
-    (let lp1 ((i 0)
-              (acc knil))
-      (if (>= i limit)
+    (let lp ((i 3)
+             (acc knil))
+      (if (= i limit)
           acc
-          (let lp2 ((n (vector-ref mst i))
-                    (acc acc))
-            (if (zero? n)
-                (lp1 (+ i 1) acc)
-                (let* ((n2 (bit-and n (- n 1)))
-                       (n-tail (- n n2))
-                       (bit (+ (* i 24) (integer-log n-tail))))
-                  (lp2 n2 (kons bit acc)))))))))
+          (let ((m (vector-ref mst i)))
+            (lp (+ i 1) (if m (kons (- i 3) m acc) acc)))))))
+
+;; Find the lowest fresh index for this tag that's unused
+;; in the multi-state.  This also updates the nfa's highest
+;; tag counter if a completely new slot number was assigned.
+(define (next-index-for-tag! nfa tag mst)
+  (let* ((highest (nfa-highest-map-index nfa))
+         (tag-slots (vector-ref (vector-ref mst 0) tag))
+         (new-index (do ((slot 0 (+ slot 1)))
+                        ((not (memv slot tag-slots)) slot))))
+    (cond ((> new-index highest)
+           (nfa-set-highest-map-index! nfa new-index)))
+    new-index))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;; NFA->DFA compilation
-;;
+;;;; tNFA->DFA compilation
 ;; During processing, the DFA is a list of the form:
 ;;
-;;   ((NFA-states ...) accepting-state? transitions ...)
+;;   ((annotated-tNFA-states ...) finalizer transitions ...)
 ;;
 ;; where the transitions are as in the NFA, except there are no
 ;; epsilons, duplicate characters or overlapping char-set ranges, and
 ;; the states moved to are closures (sets of NFA states).  Multiple
-;; DFA states may be accepting states.
+;; DFA states may be accepting states.  If the state is an accepting state,
+;; the finalizer is a list of (tag . memory-slot) retrieval commands.
+;; tNFA-states are annotated with mappings which store the tag values of
+;; memory slots, if any.  There is always at most one slot for a tag.
+;;
+;; The DFA itself simulates a NFA by representing all the simultaneous
+;; states the NFA can be in at any given point in time as one DFA state.
+;; The tag values are ambiguous since each NFA transition can set a tag.
+;; To solve this we keep a bank of memory slots around which tracks tag
+;; values for each distinct path through the NFA.
+;;
+;; Once we get to a final state we can pluck the tag values from the
+;; memory slots corresponding to the path through which the NFA could have
+;; reached the final state.  To resolve ambiguities, states are assigned
+;; priorities, and the path to the final state is chosen correspondingly.
+;;
+;; For a more detailed explanation about this process, see
+;; Ville Laurikari; ``NFAs with Tagged Transitions, their Conversion to
+;; Deterministic Automata and Application to Regular Expressions'' (2000).
+;; Laurikari also wrote a master's thesis about this approach which is
+;; less terse but the algorithms are not exactly the same.
+;; ``Efficient submatch addressing for regular expressions'' (2001).
+;; This implementation follows the 2000 paper where they differ.
 
 (define (nfa->dfa nfa . o)
-  (let ((max-states (and (pair? o) (car o))))
-    (let lp ((ls (list (nfa-cache-state-closure! nfa (nfa-start-state nfa))))
-             (i 0)
-             (res '()))
+  (let* ((max-states (and (pair? o) (car o)))
+         (start (nfa-state->multi-state nfa (nfa-start-state nfa) '()))
+         (start-closure (nfa-epsilon-closure nfa start))
+         ;; Set up a special "initializer" state from which we reach the
+         ;; start-closure to ensure that leading tags are set properly.
+         (init-set (tag-set-commands-for-closure nfa start start-closure '()))
+         (dummy (make-nfa-multi-state nfa))
+         (init-state (list dummy #f `((,start-closure #f () . ,init-set)))))
+    ;; Unmarked states are just sets of NFA states with tag-maps, marked states
+    ;; are sets of NFA states with transitions to sets of NFA states
+    (let lp ((unmarked-states (list start-closure))
+             (marked-states (list init-state))
+             (dfa-size 0))
       (cond
-       ((null? ls)
-        (dfa-renumber nfa (reverse res)))
-       ((assoc (car ls) res) ;; already seen this combination of states
-        (lp (cdr ls) i res))
-       ((and max-states (> i max-states)) ;; too many DFA states
+       ((null? unmarked-states)
+        ;; Abuse finalizer slot for storing the number of memory slots we need
+        (set-car! (cdr init-state) (+ (nfa-highest-map-index nfa) 1))
+        (dfa-renumber (reverse marked-states)))
+       ((and max-states (> dfa-size max-states)) ; Too many DFA states
         #f)
+       ((assoc (car unmarked-states) marked-states) ; Seen set of NFA-states?
+        (lp (cdr unmarked-states) marked-states dfa-size))
        (else
-        (let* ((states (car ls))
-               (trans (nfa-state-transitions nfa states))
-               (accept? (and (nfa-multi-state-contains? states 0) #t)))
-          (lp (append (map cdr trans) (cdr ls))
-              (+ i 1)
-              `((,states ,accept? ,@trans) ,@res))))))))
+        (let ((dfa-state (car unmarked-states)))
+          (let lp2 ((trans (get-distinct-transitions nfa dfa-state))
+                    (unmarked-states (cdr unmarked-states))
+                    (dfa-trans '()))
+            (if (null? trans)
+                (let ((finalizer (nfa-state-mappings dfa-state 0)))
+                  (lp unmarked-states
+                      (cons (list dfa-state finalizer dfa-trans) marked-states)
+                      (+ dfa-size 1)))
+                (let* ((closure (nfa-epsilon-closure nfa (cdar trans)))
+                       (reordered (find-reorder-commands nfa closure marked-states))
+                       (copy-cmds (if reordered (cdr reordered) '()))
+                       ;; Laurikari doesn't mention what "k" is, but it seems it
+                       ;; must be the mappings of the state's reach
+                       (set-cmds (tag-set-commands-for-closure nfa (cdar trans) closure copy-cmds))
+                       (trans-closure (if reordered (car reordered) closure)))
+                  (lp2 (cdr trans)
+                       (if reordered
+                           unmarked-states
+                           (cons trans-closure unmarked-states))
+                       (cons `(,trans-closure ,(caar trans) ,copy-cmds . ,set-cmds)
+                             dfa-trans)))))))))))
 
 ;; When the conversion is complete we renumber the DFA sets-of-states
 ;; in order and convert the result to a vector for fast lookup.
 ;; Charsets containing single characters are converted to those characters
 ;; for quick matching of the literal parts in a regex.
-(define (dfa-renumber nfa dfa)
-  (let* ((len (length dfa))
-         (states (make-vector (nfa-num-states nfa) '()))
-         (res (make-vector len)))
-    (define (renumber mst)
-      (cdr (assoc mst (vector-ref states (nfa-multi-state-hash nfa mst)))))
-    (let lp ((ls dfa) (i 0))
-      (cond ((pair? ls)
-             (let ((j (nfa-multi-state-hash nfa (caar ls))))
-               (vector-set! states j (cons (cons (caar ls) i)
-                                           (vector-ref states j))))
-             (lp (cdr ls) (+ i 1)))))
-    (let lp ((ls dfa) (i 0))
-      (cond ((pair? ls)
-             (for-each
-              (lambda (x)
-                (set-car! x (maybe-cset->char (car x)))
-                (set-cdr! x (renumber (cdr x))))
-              (cddar ls))
-             (vector-set! res i (cdar ls))
-             (lp (cdr ls) (+ i 1)))))
-    res))
+(define (dfa-renumber states)
+  (let ((indexes (let lp ((i 0) (states states) (indexes '()))
+                   (if (null? states)
+                       indexes
+                       (lp (+ i 1) (cdr states)
+                           (cons (cons (caar states) i) indexes)))))
+        (dfa (make-vector (length states))))
+    (do ((i 0 (+ i 1))
+         (states states (cdr states)))
+        ((null? states) dfa)
+      (let ((maybe-finalizer (cadar states))
+            (transitions (caddar states)))
+       (vector-set!
+        dfa i
+        (cons maybe-finalizer
+              (map (lambda (tr)
+                     `(,(and (cadr tr) (maybe-cset->char (cadr tr)))
+                       ,(cdr (assoc (car tr) indexes)) . ,(cddr tr)))
+                   transitions)))))))
 
 ;; Extract all distinct ranges and the potential states they can transition
 ;; to from a given set of states.  Any ranges that would overlap with
 ;; distinct characters are split accordingly.
-(define (nfa-state-transitions nfa states)
-  (let ((res (nfa-multi-state-fold
-              states
-              (lambda (st res)
-                (let ((trans (nfa-get-state-trans nfa st)))
-                  (if (null? trans)
-                      res
-                      (nfa-join-transitions! nfa res (car trans) (cdr trans)))))
-              '())))
-    (for-each (lambda (x) (set-cdr! x (nfa-closure nfa (cdr x)))) res)
-    res))
-
-(define (nfa-join-transitions! nfa existing elt state)
+;; This function is like "reach" in Laurikari's papers, but for each
+;; possible distinct range of characters rather than per character.
+(define (get-distinct-transitions nfa annotated-states)
   (define (csets-intersect? a b)
     (let ((i (cset-intersection a b)))
       (and (not (cset-empty? i)) i)))
-  (let lp ((ls existing) (res '()))
-    (cond
-     ((null? ls)
-      (cond
-       ;; First try to find a group that includes *only* this state.
-       ;; TRICKY!: If it contains other states too, we will end up in trouble
-       ;; later on if the group needs to be broken up because of overlapping
-       ;; csets, since then you don't know what parts of the overlap "belong"
-       ;; to the state we are about to add or the one that was already there.
-       ((find (lambda (x) (nfa-multi-state-contains-only? (cdr x) state)) existing) =>
-        (lambda (existing-state)    ; If found, merge charsets with it
-          (set-car! existing-state (cset-union (car existing-state) elt))
-          existing))
-       ;; State not seen yet?  Add a new state transition
-       (else (cons (cons elt (nfa-state->multi-state nfa state)) existing))))
-     ((cset=? elt (caar ls)) ; Add state to existing set for this charset
-      (set-cdr! (car ls) (nfa-multi-state-add! (cdar ls) state))
-      existing)
-     ((csets-intersect? elt (caar ls)) => ; overlapping charset, but diff state
-      (lambda (intersection)
-        (let* ((only-in-old (cset-difference (caar ls) elt))
-               (states-for-old (and (not (cset-empty? only-in-old))
-                                    (nfa-multi-state-copy (cdar ls))))
-               (result (if states-for-old
-                           (cons (cons only-in-old states-for-old)
-                                 (append res (cdr ls)))
-                           (append res (cdr ls))))
-               (only-in-new (cset-difference elt (caar ls))))
-          ;; Add this state to the states already here and restrict to
-          ;; the overlapping charset
-          (set-car! (car ls) intersection)
-          (set-cdr! (car ls) (nfa-multi-state-add! (cdar ls) state))
-          ;; Continue with the remaining subset of the new cset (if nonempty)
-          (cons (car ls)
-                (if (cset-empty? only-in-new)
-                    result
-                    (nfa-join-transitions! nfa result only-in-new state))))))
-     (else
-      (lp (cdr ls) (cons (car ls) res))))))
-
-(define (nfa-cache-state-closure! nfa state)
-  (let ((cached (nfa-get-state-closure nfa state)))
-    (cond
-     ((not (null? cached))
-      cached)
-     (else
-      (let ((res (nfa-state-closure-internal nfa state)))
-        (nfa-set-state-closure! nfa state res)
-        res)))))
-
-;; The `closure' of a list of NFA states - all states that can be
-;; reached from any of them using any number of epsilon transitions.
-(define (nfa-state-closure-internal nfa state)
-  (let lp ((ls (list state))
-           (res (make-nfa-multi-state nfa)))
-    (cond
-     ((null? ls)
-      res)
-     ((nfa-multi-state-contains? res (car ls))
-      (lp (cdr ls) res))
-     (else
-      ;; Ignore any epsilon tags for now
-      (lp (append (map car (nfa-get-epsilons nfa (car ls))) (cdr ls))
-          (nfa-multi-state-add! res (car ls)))))))
-
-(define (nfa-closure-internal nfa states)
   (nfa-multi-state-fold
-   states
-   (lambda (st res)
-     (nfa-multi-state-union! res (nfa-cache-state-closure! nfa st)))
-   (make-nfa-multi-state nfa)))
+   annotated-states
+   (lambda (st mappings res)
+     (let ((trans (nfa-get-state-trans nfa st))) ; Always one state per trans
+       (if (null? trans)
+           res
+           (let lp ((ls res) (cs (car trans)) (state (cdr trans)) (res '()))
+             (cond
+              ;; State not seen yet?  Add a new state transition
+              ((null? ls)
+               ;; TODO: We should try to find an existing DFA state with only
+               ;; this NFA state in it, and extend the cset with the current one.
+               ;; This produces smaller DFAs, but takes longer to compile.
+               (cons (cons cs (nfa-state->multi-state nfa state mappings))
+                     res))
+              ((cset=? cs (caar ls)) ; Add state to existing set for this charset
+               (nfa-multi-state-add! nfa (cdar ls) state mappings)
+               (append ls res))
+              ((csets-intersect? cs (caar ls)) =>
+               (lambda (intersection)
+                 (let* ((only-in-new (cset-difference cs (caar ls)))
+                        (only-in-old (cset-difference (caar ls) cs))
+                        (states-in-both (cdar ls))
+                        (states-for-old (and (not (cset-empty? only-in-old))
+                                             (nfa-multi-state-copy states-in-both)))
+                        (res (if states-for-old
+                                 (cons (cons only-in-old states-for-old) res)
+                                 res)))
+                   (nfa-multi-state-add! nfa states-in-both state mappings)
+                   ;; Add this state to the states already here and restrict to
+                   ;; the overlapping charset and continue with the remaining subset
+                   ;; of the new cset (if nonempty)
+                   (if (cset-empty? only-in-new)
+                       (cons (cons intersection states-in-both)
+                             (append (cdr ls) res))
+                       (lp (cdr ls) only-in-new state
+                           (cons (cons intersection states-in-both) res))))))
+              (else
+               (lp (cdr ls) cs state (cons (car ls) res))))))))
+   '()))
 
-(define (nfa-closure nfa states)
+;; The epsilon-closure of a set of states is all the states reachable
+;; through epsilon transitions, with the tags encountered on the way.
+(define (nfa-epsilon-closure-internal nfa annotated-states)
+  ;; The stack _MUST_ be in this order for some reason I don't fully understand
+  (let lp ((stack (nfa-multi-state-fold annotated-states
+                                        (lambda (st m res)
+                                          (cons (cons st m) res))
+                                        '()))
+           (priorities (make-vector (nfa-num-states nfa) 0))
+           (closure (nfa-multi-state-copy annotated-states)))
+    (if (null? stack)
+        closure
+        (let ((prio/orig-state (caar stack)) ; priority is just the state nr.
+              (mappings (cdar stack)))
+          (let lp2 ((trans (nfa-get-epsilons nfa prio/orig-state))
+                    (stack (cdr stack)))
+            (if (null? trans)
+                (lp stack priorities closure)
+                (let ((state (caar trans)))
+                  (cond
+                   ;; Our priorities are inverted because we start at
+                   ;; the highest state number and go downwards to 0.
+                   ((> prio/orig-state (vector-ref priorities state))
+                    (vector-set! priorities state prio/orig-state)
+                    (cond
+                     ((cdar trans) =>   ; tagged transition?
+                      (lambda (tag)
+                       (let* ((index (next-index-for-tag! nfa tag closure))
+                              (new-mappings (nfa-multi-state-add-tagged!
+                                             nfa closure state mappings tag index)))
+                         (lp2 (cdr trans) (cons (cons state new-mappings) stack)))))
+                     (else
+                      (nfa-multi-state-add/fast! nfa closure state mappings)
+                      (lp2 (cdr trans) (cons (cons state mappings) stack)))))
+                   (else (lp2 (cdr trans) stack))))))))))
+
+(define (nfa-epsilon-closure nfa states)
   (or (nfa-get-closure nfa states)
-      (let ((res (nfa-closure-internal nfa states)))
+      (let ((res (nfa-epsilon-closure-internal nfa states)))
         (nfa-add-closure! nfa states res)
         res)))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;; Match Extraction
-;;
-;; DFAs don't give us match information, so once we match and
-;; determine the start and end, we need to recursively break the
-;; problem into smaller DFAs to get each submatch.
-;;
-;; See http://compilers.iecc.com/comparch/article/07-10-026
+;; Generate "set" commands for all tags in the closure that are
+;; not present in the original state.
+(define (tag-set-commands-for-closure nfa orig-state closure copy-cmds)
+  (let ((num-tags (nfa-num-tags nfa))
+        (closure-summary (nfa-multi-state-mappings-summary closure))
+        (state-summary (nfa-multi-state-mappings-summary orig-state)))
+    (let lp ((t 0) (cmds '()))
+      (if (= t num-tags)
+          cmds
+          (let lp2 ((s1 (vector-ref closure-summary t))
+                    (s2 (vector-ref state-summary t))
+                    (cmds cmds))
+            (cond ((null? s1) (lp (+ t 1) cmds))
+                  ((or (memv (car s1) s2) ; Tag in original state?
+                       ;; Try to avoid generating set-commands for any slots
+                       ;; that will be overwritten by copy commands, but only
+                       ;; if that slot isn't copied to another slot.
+                       (and (not (null? copy-cmds)) ; null check for performance
+                            ;; Look for copy command overwriting this tag-slot
+                            (any (lambda (c)
+                                   (and (= (vector-ref c 0) t)
+                                        (= (vector-ref c 2) (car s1))))
+                                 copy-cmds)
+                            ;; Ensure it's not copied to another slot before
+                            ;; discarding the set-command.
+                            (not (any (lambda (c)
+                                        (and (= (vector-ref c 0) t)
+                                             (= (vector-ref c 1) (car s1))))
+                                      copy-cmds))))
+                   (lp2 (cdr s1) s2 cmds))
+                  (else (lp2 (cdr s1) s2
+                             (cons (cons t (car s1)) cmds)))))))))
 
-(define (sre-match-extractor sre num-submatches)
-  (let* ((tmp (+ num-submatches 1))
-         (tmp-end-src-offset (+ 5 (* tmp 4)))
-         (tmp-end-index-offset (+ 6 (* tmp 4))))
-    (let lp ((sre sre) (n 1) (submatch-deps? #f))
-      (cond
-       ((not (sre-has-submatches? sre))
-        (if (not submatch-deps?)
-            (lambda (cnk start i end j matches) #t)
-            (let ((dfa (nfa->dfa (sre->nfa sre ~none))))
-              (lambda (cnk start i end j matches)
-                (dfa-match/longest dfa cnk start i end j matches tmp)))))
-       ((pair? sre)
-        (case (car sre)
-          ((: seq)
-           (let* ((right (sre-sequence (cddr sre)))
-                  (match-left (lp (cadr sre) n #t))
-                  (match-right
-                   (lp right (+ n (sre-count-submatches (cadr sre))) #t)))
-             (lambda (cnk start i end j matches)
-               (let lp1 ((end2 end) (j2 j) (best-src #f) (best-index #f))
-                 (let ((limit (if (eq? start end2)
-                                  i
-                                  ((chunker-get-start cnk) end2))))
-                   (let lp2 ((k j2) (best-src best-src) (best-index best-index))
-                     (if (< k limit)
-                         (cond
-                          ((not (eq? start end2))
-                           (let ((prev (chunker-prev-chunk cnk start end2)))
-                             (lp1 prev
-                                  ((chunker-get-end cnk) prev)
-                                  best-src
-                                  best-index)))
-                          (best-src
-                           (vector-set! matches tmp-end-src-offset best-src)
-                           (vector-set! matches tmp-end-index-offset best-index)
-                           #t)
-                          (else
-                           #f))
-                         (if (and (match-left cnk start i end2 k matches)
-                                  (eq? end2 (vector-ref matches
-                                                        tmp-end-src-offset))
-                                  (eqv? k (vector-ref matches
-                                                      tmp-end-index-offset))
-                                  (match-right cnk end2 k end j matches))
-                             (let ((right-src
-                                    (vector-ref matches tmp-end-src-offset))
-                                   (right
-                                    (vector-ref matches tmp-end-index-offset)))
-                               (cond
-                                ((and (eq? end right-src) (eqv? j right))
-                                 (vector-set! matches tmp-end-src-offset end)
-                                 (vector-set! matches tmp-end-index-offset j)
-                                 #t)
-                                ((or (not best-src)
-                                     (if (eq? best-src right-src)
-                                         (> right best-index)
-                                         (chunk-before? cnk
-                                                        best-src
-                                                        right-src)))
-                                 (lp2 (- k 1) right-src right))
-                                (else
-                                 (lp2 (- k 1) best-src best-index))))
-                             (lp2 (- k 1) best-src best-index)))))))))
-          ((or)
-           (if (null? (cdr sre))
-               (lambda (cnk start i end j matches) #f)
-               (let* ((rest (sre-alternate (cddr sre)))
-                      (match-first
-                       (lp (cadr sre) n #t))
-                      (match-rest
-                       (lp rest
-                           (+ n (sre-count-submatches (cadr sre)))
-                           submatch-deps?)))
-                 (lambda (cnk start i end j matches)
-                   (or (and (match-first cnk start i end j matches)
-                            (eq? end (vector-ref matches tmp-end-src-offset))
-                            (eqv? j (vector-ref matches tmp-end-index-offset)))
-                       (match-rest cnk start i end j matches))))))
-          ((* +)
-           (letrec ((match-once
-                     (lp (sre-sequence (cdr sre)) n #t))
-                    (match-all
-                     (lambda (cnk start i end j matches)
-                       (if (match-once cnk start i end j matches)
-                           (let ((src (vector-ref matches tmp-end-src-offset))
-                                 (k (vector-ref matches tmp-end-index-offset)))
-                             (if (and src (or (not (eq? start src)) (< i k)))
-                                 (match-all cnk src k end j matches)
-                                 #t))
-                           (begin
-                             (vector-set! matches tmp-end-src-offset start)
-                             (vector-set! matches tmp-end-index-offset i)
-                             #t)))))
-             (if (eq? '* (car sre))
-                 match-all
-                 (lambda (cnk start i end j matches)
-                   (and (match-once cnk start i end j matches)
-                        (let ((src (vector-ref matches tmp-end-src-offset))
-                              (k (vector-ref matches tmp-end-index-offset)))
-                          (match-all cnk src k end j matches)))))))
-          ((?)
-           (let ((match-once (lp (sre-sequence (cdr sre)) n #t)))
-             (lambda (cnk start i end j matches)
-               (cond
-                ((match-once cnk start i end j matches)
-                 #t)
-                (else
-                 (vector-set! matches tmp-end-src-offset start)
-                 (vector-set! matches tmp-end-index-offset i)
-                 #t)))))
-          (($ submatch => submatch-named)
-           (let ((match-one
-                  (lp (sre-sequence (if (memq (car sre) '($ submatch))
-                                        (cdr sre)
-                                        (cddr sre)))
-                      (+ n 1)
-                      #t))
-                 (start-src-offset (+ 3 (* n 4)))
-                 (start-index-offset (+ 4 (* n 4)))
-                 (end-src-offset (+ 5 (* n 4)))
-                 (end-index-offset (+ 6 (* n 4))))
-             (lambda (cnk start i end j matches)
-               (cond
-                ((match-one cnk start i end j matches)
-                 (vector-set! matches start-src-offset start)
-                 (vector-set! matches start-index-offset i)
-                 (vector-set! matches end-src-offset
-                              (vector-ref matches tmp-end-src-offset))
-                 (vector-set! matches end-index-offset
-                              (vector-ref matches tmp-end-index-offset))
-                 #t)
-                (else
-                 #f)))))
-          (else
-           (error "unknown regexp operator" (car sre)))))
-       (else
-        (error "unknown regexp" sre))))))
+;; Look in dfa-states for an already existing state which matches
+;; closure, but has different tag value mappings.
+;; If found, calculate reordering commands so we can map the closure
+;; to that state instead of adding a new DFA state.
+;; This is completely handwaved away in Laurikari's paper (it basically
+;; says "insert reordering algorithm here"), so this code was constructed
+;; after some experimentation.  In other words, bugs be here.
+(define (find-reorder-commands-internal nfa closure dfa-states)
+  (let ((num-states (nfa-num-states nfa))
+        (num-tags (nfa-num-tags nfa))
+        (closure-summary (nfa-multi-state-mappings-summary closure)))
+    (let lp ((dfa-states dfa-states))
+      (if (null? dfa-states)
+          #f
+          (if (not (nfa-multi-state-same-states? (caar dfa-states) closure))
+              (lp (cdr dfa-states))
+              (let lp2 ((state-summary (nfa-multi-state-mappings-summary
+                                        (caar dfa-states)))
+                        (t 0) (cmds '()))
+                (if (= t num-tags)
+                    (cons (caar dfa-states) cmds)
+                    (let lp3 ((closure-slots (vector-ref closure-summary t))
+                              (state-slots (vector-ref state-summary t))
+                              (cmds cmds))
+                      (cond ((null? closure-slots)
+                             (if (null? state-slots)
+                                 (lp2 state-summary (+ t 1) cmds)
+                                 (lp (cdr dfa-states))))
+                            ((null? state-slots) (lp (cdr dfa-states)))
+                            (else (lp3 (cdr closure-slots)
+                                       (cdr state-slots)
+                                       (if (= (car closure-slots) (car state-slots))
+                                           cmds
+                                           (cons (vector t (car closure-slots) (car state-slots))
+                                                 cmds)))))))))))))
+
+(define (find-reorder-commands nfa closure dfa-states)
+  (or (nfa-get-reorder-commands nfa closure)
+      (let ((res (find-reorder-commands-internal nfa closure dfa-states)))
+        (nfa-set-reorder-commands! nfa closure res)
+        res)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Closure Compilation
