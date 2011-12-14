@@ -269,8 +269,8 @@
   (test-group "predicates"
     (test-assert (irregex? (irregex "a.*b")))
     (test-assert (irregex? (irregex '(: "a" (* any) "b"))))
-    (test-assert (not (irregex? (vector '*irregex-tag* #f #f #f #f #f #f #f))))
-    (test-assert (not (irregex? (vector #f #f #f #f #f #f #f #f #f))))
+    (test-assert (not (irregex? (vector '*irregex-tag* #f #f #f #f #f #f))))
+    (test-assert (not (irregex? (vector #f #f #f #f #f #f #f #f))))
     (test-assert (irregex-match-data? (irregex-search "a.*b" "axxxb")))
     (test-assert (irregex-match-data? (irregex-match "a.*b" "axxxb")))
     (test-assert (not (irregex-match-data? (vector '*irregex-match-tag* #f #f #f #f #f #f #f #f #f))))
