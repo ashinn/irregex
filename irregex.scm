@@ -3550,9 +3550,10 @@
             (error "not a valid sre char-set" sre)))))))
 
 (define (cset->sre cset)
-  (sre-alternate
-   (map (lambda (x) (list '/ (car x) (cdr x)))
-        (vector->list cset))))
+  (cons '/
+        (fold (lambda (x res) (cons (car x) (cons (cdr x) res)))
+              '()
+              (vector->list cset))))
 
 (define (cset-contains? cset ch)
   (let ((len (vector-length cset)))
