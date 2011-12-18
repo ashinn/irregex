@@ -1,6 +1,6 @@
 ;;;; irregex.scm -- IrRegular Expressions
 ;;
-;; Copyright (c) 2005-2010 Alex Shinn.  All rights reserved.
+;; Copyright (c) 2005-2011 Alex Shinn.  All rights reserved.
 ;; BSD-style license: http://synthcode.com/license.txt
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -31,6 +31,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; History
 ;;
+;; 0.8.3: 2011/12/18 - various accumulated bugfixes
 ;; 0.8.2: 2010/08/28 - (...)? submatch extraction fix and alternate
 ;;                     named submatches from Peter Bex
 ;;                     Added irregex-split, irregex-extract,
