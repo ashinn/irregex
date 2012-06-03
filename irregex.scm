@@ -1,6 +1,6 @@
 ;;;; irregex.scm -- IrRegular Expressions
 ;;
-;; Copyright (c) 2005-2011 Alex Shinn.  All rights reserved.
+;; Copyright (c) 2005-2012 Alex Shinn.  All rights reserved.
 ;; BSD-style license: http://synthcode.com/license.txt
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -27,10 +27,13 @@
 ;; performance tuning, but you can only go so far while staying
 ;; portable.  AND-LET*, SRFI-9 records and custom macros would've been
 ;; nice.
+;;
+;; Version 1.0 will be released as a portable R7RS library.
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; History
 ;;
+;; 0.9.0: 2012/06/03 - Using tags for match extraction from Peter Bex.
 ;; 0.8.3: 2011/12/18 - various accumulated bugfixes
 ;; 0.8.2: 2010/08/28 - (...)? submatch extraction fix and alternate
 ;;                     named submatches from Peter Bex
@@ -2753,17 +2756,20 @@
                       (cons (list dfa-state finalizer dfa-trans) marked-states)
                       (+ dfa-size 1)))
                 (let* ((closure (nfa-epsilon-closure nfa (cdar trans)))
-                       (reordered (find-reorder-commands nfa closure marked-states))
+                       (reordered
+                        (find-reorder-commands nfa closure marked-states))
                        (copy-cmds (if reordered (cdr reordered) '()))
                        ;; Laurikari doesn't mention what "k" is, but it seems it
                        ;; must be the mappings of the state's reach
-                       (set-cmds (tag-set-commands-for-closure nfa (cdar trans) closure copy-cmds))
+                       (set-cmds (tag-set-commands-for-closure
+                                  nfa (cdar trans) closure copy-cmds))
                        (trans-closure (if reordered (car reordered) closure)))
                   (lp2 (cdr trans)
                        (if reordered
                            unmarked-states
                            (cons trans-closure unmarked-states))
-                       (cons `(,trans-closure ,(caar trans) ,copy-cmds . ,set-cmds)
+                       (cons `(,trans-closure
+                               ,(caar trans) ,copy-cmds . ,set-cmds)
                              dfa-trans)))))))))))
 
 ;; When the conversion is complete we renumber the DFA sets-of-states
@@ -2809,12 +2815,14 @@
              (cond
               ;; State not seen yet?  Add a new state transition
               ((null? ls)
-               ;; TODO: We should try to find an existing DFA state with only
-               ;; this NFA state in it, and extend the cset with the current one.
-               ;; This produces smaller DFAs, but takes longer to compile.
+               ;; TODO: We should try to find an existing DFA state
+               ;; with only this NFA state in it, and extend the cset
+               ;; with the current one.  This produces smaller DFAs,
+               ;; but takes longer to compile.
                (cons (cons cs (nfa-state->multi-state nfa state mappings))
                      res))
-              ((cset=? cs (caar ls)) ; Add state to existing set for this charset
+              ((cset=? cs (caar ls))
+               ;; Add state to existing set for this charset
                (nfa-multi-state-add! nfa (cdar ls) state mappings)
                (append ls res))
               ((csets-intersect? cs (caar ls)) =>
@@ -2822,15 +2830,17 @@
                  (let* ((only-in-new (cset-difference cs (caar ls)))
                         (only-in-old (cset-difference (caar ls) cs))
                         (states-in-both (cdar ls))
-                        (states-for-old (and (not (cset-empty? only-in-old))
-                                             (nfa-multi-state-copy states-in-both)))
+                        (states-for-old
+                         (and (not (cset-empty? only-in-old))
+                              (nfa-multi-state-copy states-in-both)))
                         (res (if states-for-old
                                  (cons (cons only-in-old states-for-old) res)
                                  res)))
                    (nfa-multi-state-add! nfa states-in-both state mappings)
-                   ;; Add this state to the states already here and restrict to
-                   ;; the overlapping charset and continue with the remaining subset
-                   ;; of the new cset (if nonempty)
+                   ;; Add this state to the states already here and
+                   ;; restrict to the overlapping charset and continue
+                   ;; with the remaining subset of the new cset (if
+                   ;; nonempty)
                    (if (cset-empty? only-in-new)
                        (cons (cons intersection states-in-both)
                              (append (cdr ls) res))
@@ -2868,9 +2878,11 @@
                      ((cdar trans) =>   ; tagged transition?
                       (lambda (tag)
                        (let* ((index (next-index-for-tag! nfa tag closure))
-                              (new-mappings (nfa-multi-state-add-tagged!
-                                             nfa closure state mappings tag index)))
-                         (lp2 (cdr trans) (cons (cons state new-mappings) stack)))))
+                              (new-mappings
+                               (nfa-multi-state-add-tagged!
+                                nfa closure state mappings tag index)))
+                         (lp2 (cdr trans)
+                              (cons (cons state new-mappings) stack)))))
                      (else
                       (nfa-multi-state-add/fast! nfa closure state mappings)
                       (lp2 (cdr trans) (cons (cons state mappings) stack)))))
