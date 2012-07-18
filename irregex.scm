@@ -2203,7 +2203,9 @@
 
     ;; extended library patterns
     (integer . (seq (? (or #\+ #\-)) (+ numeric)))
-    (real . (seq (+ numeric) (? #\. (+ numeric)) (? (or #\e #\E) integer)))
+    (real . (seq (? (or #\+ #\-))
+                 (+ numeric) (? #\. (+ numeric))
+                 (? (or #\e #\E) integer)))
     ;; slightly more lax than R5RS, allow ->foo, etc.
     (symbol-initial . (or alpha ("!$%&*/:<=>?^_~")))
     (symbol-subsequent . (or symbol-initial digit ("+-.@")))
