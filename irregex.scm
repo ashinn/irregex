@@ -2239,7 +2239,7 @@
                  (or domain/common ipv4-address) ;; (seq "[" ipv6-address "]")
                  (? ":" (+ numeric)) ;; port
                  ;; path
-                 (? "/" (* url-char)
+                 (? ("/" (* (or url-char "/")))
                     (? "?" (* url-char))                      ;; query
                     (? "#" (? (* url-char) url-final-char)) ;; fragment
                     )))
