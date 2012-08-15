@@ -13,7 +13,7 @@
 	    irregex-match-end-index irregex-match-num-submatches
             irregex-match-names irregex-match-valid-index?
 	    irregex-fold irregex-replace irregex-replace/all
-	    irregex-dfa irregex-dfa/search irregex-dfa/extract
+	    irregex-dfa irregex-dfa/search
 	    irregex-nfa irregex-flags irregex-lengths irregex-names
             irregex-num-submatches irregex-extract irregex-split))
 
