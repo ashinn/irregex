@@ -164,6 +164,14 @@
 (define (irregex-match-end-index-set! m n end)
   (vector-set! m (+ 6 (* n 4)) end))
 
+;; Tags use indices that are aligned to start/end positions just like the
+;; match vectors.  ie, a tag 0 is a start tag, 1 is its corresponding end tag.
+;; They start at 0, which requires us to map them to submatch index 1.
+;; Sorry for the horrible name ;)
+(define (irregex-match-chunk&index-from-tag-set! m t chunk index)
+  (vector-set! m (+ 7 (* t 2)) chunk)
+  (vector-set! m (+ 8 (* t 2)) index))
+
 ;; Helper procedure to convert any type of index from a rest args list
 ;; to a numeric index.  Named submatches are converted to their corresponding
 ;; numeric index, and numeric submatches are checked for validity.
@@ -2029,9 +2037,10 @@
      (let* ((tag (car tag&slot))
             (slot (vector-ref memory (cdr tag&slot)))
             (chunk&pos (vector-ref slot tag)))
-       ;; DFA tags start at 0 but real tags start at 1. That's why we add 7 & 8
-       (vector-set! matches (+ 7 (* 2 tag)) (and chunk&pos (car chunk&pos)))
-       (vector-set! matches (+ 8 (* 2 tag)) (and chunk&pos (cdr chunk&pos)))))
+       (irregex-match-chunk&index-from-tag-set!
+        matches tag
+        (and chunk&pos (car chunk&pos))
+        (and chunk&pos (cdr chunk&pos)))))
    finalizer))
 (define (make-initial-memory slots matches)
   (let ((size (* (irregex-match-num-submatches matches) 2))
