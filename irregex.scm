@@ -2299,23 +2299,19 @@
         (nfa-set-epsilons! nfa i (cons (cons x t) eps)))))
 
 (define (nfa-get-reorder-commands nfa mst)
-  (cond ((assoc mst
-                (vector-ref nfa (+ (* (nfa-multi-state-hash nfa mst)
-                                      *nfa-num-fields*) 2)))
+  (cond ((assoc mst (vector-ref nfa (+ (* (mst-hash mst) *nfa-num-fields*) 2)))
          => cdr)
         (else #f)))
 (define (nfa-set-reorder-commands! nfa mst x)
-  (let ((i (+ (* (nfa-multi-state-hash nfa mst) *nfa-num-fields*) 2)))
+  (let ((i (+ (* (mst-hash mst) *nfa-num-fields*) 2)))
     (vector-set! nfa i (cons (cons mst x) (vector-ref nfa i)))))
 
 (define (nfa-get-closure nfa mst)
-  (cond ((assoc mst
-                (vector-ref nfa (+ (* (nfa-multi-state-hash nfa mst)
-                                      *nfa-num-fields*) 3)))
+  (cond ((assoc mst (vector-ref nfa (+ (* (mst-hash mst) *nfa-num-fields*) 3)))
          => cdr)
         (else #f)))
 (define (nfa-add-closure! nfa mst x)
-  (let ((i (+ (* (nfa-multi-state-hash nfa mst) *nfa-num-fields*) 3)))
+  (let ((i (+ (* (mst-hash mst) *nfa-num-fields*) 3)))
     (vector-set! nfa i (cons (cons mst x) (vector-ref nfa i)))))
 
 ;; Compile and return the vector of NFA states (in groups of
@@ -2575,18 +2571,32 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; NFA multi-state representation
 
-(define (nfa-multi-state-hash nfa mst)
+(define *mst-first-state-index* 3)
+
+(define (mst-mappings-summary mst)
+  (vector-ref mst 0))
+
+(define (mst-num-states mst)
+  (vector-ref mst 1))
+
+(define (mst-num-states-set! mst num)
+  (vector-set! mst 1 num))
+
+(define (mst-hash mst)
   ;; We could do (modulo X (nfa-num-states nfa)) here which would be faster,
   ;; but we can't assume a full numerical tower (and updating *could*
   ;; produce a bignum), so we do it each time when updating the hash.
   (vector-ref mst 2))
 
-;; Returns #f if NFA state does not occur in multi-state
-(define (nfa-state-mappings mst state)
-  (vector-ref mst (+ state 3)))
+(define (mst-hash-set! mst hash)
+  (vector-set! mst 2 hash))
 
-(define (nfa-multi-state-mappings-summary mst)
-  (vector-ref mst 0))
+;; Returns #f if NFA state does not occur in multi-state
+(define (mst-state-mappings mst state)
+  (vector-ref mst (+ state *mst-first-state-index*)))
+
+(define (mst-state-mappings-set! mst state mappings)
+  (vector-set! mst (+ state *mst-first-state-index*) mappings))
 
 ;; A multi-state holds a set of states with their tag-to-slot mappings.
 ;; Slot 0 contains a summary of all mappings for all states in the multi-state.
@@ -2596,35 +2606,35 @@
 ;; state numbers plus each tag value (once per occurrence).  This is a silly
 ;; hashing calculation, but it seems to produce a well-spread out hash table and
 ;; it has the added advantage that we can use the value as a quick check if the
-;; state is definitely NOT equivalent to another in nfa-multi-state-same-states?
+;; state is definitely NOT equivalent to another in mst-same-states?
 ;; The other slots contain mappings for each corresponding state.
 
-(define (make-nfa-multi-state nfa)
-  (let ((mst (make-vector (+ (nfa-num-states nfa) 3) #f)))
+(define (make-mst nfa)
+  (let ((mst (make-vector (+ (nfa-num-states nfa) *mst-first-state-index*) #f)))
     (vector-set! mst 0 (make-vector (nfa-num-tags nfa) '())) ; tag summary
     (vector-set! mst 1 0)               ; total number of states
     (vector-set! mst 2 0)               ; states and tags hash
     mst))
 
 ;; NOTE: This doesn't do a deep copy of the mappings.  Don't mutate them!
-(define (nfa-multi-state-copy mst)
+(define (mst-copy mst)
   (let ((v (vector-copy mst)))
     (vector-set! v 0 (vector-copy (vector-ref mst 0)))
     v))
 
-(define (nfa-state->multi-state nfa state mappings)
-  (let ((mst (make-nfa-multi-state nfa)))
-    (nfa-multi-state-add! nfa mst state mappings)
+(define (nfa-state->mst nfa state mappings)
+  (let ((mst (make-mst nfa)))
+    (mst-add! nfa mst state mappings)
     mst))
 
 ;; Extend multi-state with a state and add its tag->slot mappings.
-(define (nfa-multi-state-add! nfa mst state mappings)
-  (let ((hash-value (vector-ref mst 2)))
-    (cond ((not (vector-ref mst (+ state 3))) ;  Update state hash & count?
-           (set! hash-value (+ (vector-ref mst 2) state))
-           (vector-set! mst 1 (+ (vector-ref mst 1) 1))))
-    (vector-set! mst (+ state 3) mappings)
-    (let ((all-mappings (vector-ref mst 0)))
+(define (mst-add! nfa mst state mappings)
+  (let ((hash-value (mst-hash mst)))
+    (cond ((not (mst-state-mappings mst state)) ;  Update state hash & count?
+           (set! hash-value (+ hash-value state))
+           (mst-num-states-set! mst (+ (mst-num-states mst) 1))))
+    (mst-state-mappings-set! mst state mappings)
+    (let ((all-mappings (mst-mappings-summary mst)))
       (for-each
        (lambda (tag&slot)
          (let* ((t (car tag&slot))
@@ -2634,22 +2644,23 @@
                   (set! hash-value (+ hash-value t))
                   (vector-set! all-mappings t (cons s m))))))
        mappings))
-    (vector-set! mst 2 (modulo hash-value (nfa-num-states nfa)))))
+    (mst-hash-set! mst (modulo hash-value (nfa-num-states nfa)))))
 
 ;; Same as above, but skip updating mappings summary.
 ;; Called when we know all the tag->slot mappings are already in the summary.
-(define (nfa-multi-state-add/fast! nfa mst state mappings)
-  (cond ((not (vector-ref mst (+ state 3))) ;  Update state hash & count?
-         (vector-set! mst 2 (modulo (+ (vector-ref mst 2) state)
-                                    (nfa-num-states nfa)))
-         (vector-set! mst 1 (+ (vector-ref mst 1) 1))))
-  (vector-set! mst (+ state 3) mappings))
+(define (mst-add/fast! nfa mst state mappings)
+  (cond ((not (mst-state-mappings mst state)) ;  Update state hash & count?
+         (mst-hash-set!
+          mst (modulo (+ (mst-hash mst) state)
+                      (nfa-num-states nfa)))
+         (mst-num-states-set! mst (+ (mst-num-states mst) 1))))
+  (mst-state-mappings-set! mst state mappings))
 
 ;; Same as above, assigning a new slot for a tag.  This slot is then
 ;; added to the summary, if it isn't in there yet.  This is more efficient
 ;; than looping through all the mappings.
-(define (nfa-multi-state-add-tagged! nfa mst state mappings tag slot)
-  (let* ((mappings-summary (vector-ref mst 0))
+(define (mst-add-tagged! nfa mst state mappings tag slot)
+  (let* ((mappings-summary (mst-mappings-summary mst))
          (summary-tag-slots (vector-ref mappings-summary tag))
          (new-mappings (let lp ((m mappings)
                                 (res '()))
@@ -2657,43 +2668,43 @@
                                ((= (caar m) tag)
                                 (append res (cons (cons tag slot) (cdr m))))
                                (else (lp (cdr m) (cons (car m) res))))))
-         (hash-value (vector-ref mst 2)))
-    (cond ((not (vector-ref mst (+ state 3))) ;  Update state hash & count?
+         (hash-value (mst-hash mst)))
+    (cond ((not (mst-state-mappings mst state)) ;  Update state hash & count?
            (set! hash-value (+ hash-value state))
-           (vector-set! mst 1 (+ (vector-ref mst 1) 1))))
-    (vector-set! mst (+ state 3) new-mappings)
+           (mst-num-states-set! mst (+ (mst-num-states mst) 1))))
+    (mst-state-mappings-set! mst state new-mappings)
     (cond ((not (memv slot summary-tag-slots)) ; Update tag/slot summary
            (set! hash-value (+ hash-value tag))
            (vector-set! mappings-summary tag (cons slot summary-tag-slots))))
-    (vector-set! mst 2 (modulo hash-value (nfa-num-states nfa)))
+    (mst-hash-set! mst (modulo hash-value (nfa-num-states nfa)))
     new-mappings))
 
-(define (nfa-multi-state-same-states? a b)
+(define (mst-same-states? a b)
   ;; First check if hash and state counts match, then check each state
-  (and (= (vector-ref a 2) (vector-ref b 2))
-       (= (vector-ref a 1) (vector-ref b 1))
+  (and (= (mst-hash a) (mst-hash b))
+       (= (mst-num-states a) (mst-num-states b))
        (let ((len (vector-length a)))
-         (let lp ((i 3))
+         (let lp ((i *mst-first-state-index*))
            (or (= i len)
                (and (equal? (not (vector-ref a i))
                             (not (vector-ref b i)))
                     (lp (+ i 1))))))))
 
-(define (nfa-multi-state-fold mst kons knil)
+(define (mst-fold mst kons knil)
   (let ((limit (vector-length mst)))
-    (let lp ((i 3)
+    (let lp ((i *mst-first-state-index*)
              (acc knil))
       (if (= i limit)
           acc
           (let ((m (vector-ref mst i)))
-            (lp (+ i 1) (if m (kons (- i 3) m acc) acc)))))))
+            (lp (+ i 1) (if m (kons (- i *mst-first-state-index*) m acc) acc)))))))
 
 ;; Find the lowest fresh index for this tag that's unused
 ;; in the multi-state.  This also updates the nfa's highest
 ;; tag counter if a completely new slot number was assigned.
 (define (next-index-for-tag! nfa tag mst)
   (let* ((highest (nfa-highest-map-index nfa))
-         (tag-slots (vector-ref (vector-ref mst 0) tag))
+         (tag-slots (vector-ref (mst-mappings-summary mst) tag))
          (new-index (do ((slot 0 (+ slot 1)))
                         ((not (memv slot tag-slots)) slot))))
     (cond ((> new-index highest)
@@ -2735,12 +2746,12 @@
 
 (define (nfa->dfa nfa . o)
   (let* ((max-states (and (pair? o) (car o)))
-         (start (nfa-state->multi-state nfa (nfa-start-state nfa) '()))
+         (start (nfa-state->mst nfa (nfa-start-state nfa) '()))
          (start-closure (nfa-epsilon-closure nfa start))
          ;; Set up a special "initializer" state from which we reach the
          ;; start-closure to ensure that leading tags are set properly.
          (init-set (tag-set-commands-for-closure nfa start start-closure '()))
-         (dummy (make-nfa-multi-state nfa))
+         (dummy (make-mst nfa))
          (init-state (list dummy #f `((,start-closure #f () . ,init-set)))))
     ;; Unmarked states are just sets of NFA states with tag-maps, marked states
     ;; are sets of NFA states with transitions to sets of NFA states
@@ -2762,7 +2773,7 @@
                     (unmarked-states (cdr unmarked-states))
                     (dfa-trans '()))
             (if (null? trans)
-                (let ((finalizer (nfa-state-mappings dfa-state 0)))
+                (let ((finalizer (mst-state-mappings dfa-state 0)))
                   (lp unmarked-states
                       (cons (list dfa-state finalizer dfa-trans) marked-states)
                       (+ dfa-size 1)))
@@ -2816,7 +2827,7 @@
   (define (csets-intersect? a b)
     (let ((i (cset-intersection a b)))
       (and (not (cset-empty? i)) i)))
-  (nfa-multi-state-fold
+  (mst-fold
    annotated-states
    (lambda (st mappings res)
      (let ((trans (nfa-get-state-trans nfa st))) ; Always one state per trans
@@ -2830,11 +2841,11 @@
                ;; with only this NFA state in it, and extend the cset
                ;; with the current one.  This produces smaller DFAs,
                ;; but takes longer to compile.
-               (cons (cons cs (nfa-state->multi-state nfa state mappings))
+               (cons (cons cs (nfa-state->mst nfa state mappings))
                      res))
               ((cset=? cs (caar ls))
                ;; Add state to existing set for this charset
-               (nfa-multi-state-add! nfa (cdar ls) state mappings)
+               (mst-add! nfa (cdar ls) state mappings)
                (append ls res))
               ((csets-intersect? cs (caar ls)) =>
                (lambda (intersection)
@@ -2843,11 +2854,11 @@
                         (states-in-both (cdar ls))
                         (states-for-old
                          (and (not (cset-empty? only-in-old))
-                              (nfa-multi-state-copy states-in-both)))
+                              (mst-copy states-in-both)))
                         (res (if states-for-old
                                  (cons (cons only-in-old states-for-old) res)
                                  res)))
-                   (nfa-multi-state-add! nfa states-in-both state mappings)
+                   (mst-add! nfa states-in-both state mappings)
                    ;; Add this state to the states already here and
                    ;; restrict to the overlapping charset and continue
                    ;; with the remaining subset of the new cset (if
@@ -2865,12 +2876,12 @@
 ;; through epsilon transitions, with the tags encountered on the way.
 (define (nfa-epsilon-closure-internal nfa annotated-states)
   ;; The stack _MUST_ be in this order for some reason I don't fully understand
-  (let lp ((stack (nfa-multi-state-fold annotated-states
+  (let lp ((stack (mst-fold annotated-states
                                         (lambda (st m res)
                                           (cons (cons st m) res))
                                         '()))
            (priorities (make-vector (nfa-num-states nfa) 0))
-           (closure (nfa-multi-state-copy annotated-states)))
+           (closure (mst-copy annotated-states)))
     (if (null? stack)
         closure
         (let ((prio/orig-state (caar stack)) ; priority is just the state nr.
@@ -2890,12 +2901,12 @@
                       (lambda (tag)
                        (let* ((index (next-index-for-tag! nfa tag closure))
                               (new-mappings
-                               (nfa-multi-state-add-tagged!
+                               (mst-add-tagged!
                                 nfa closure state mappings tag index)))
                          (lp2 (cdr trans)
                               (cons (cons state new-mappings) stack)))))
                      (else
-                      (nfa-multi-state-add/fast! nfa closure state mappings)
+                      (mst-add/fast! nfa closure state mappings)
                       (lp2 (cdr trans) (cons (cons state mappings) stack)))))
                    (else (lp2 (cdr trans) stack))))))))))
 
@@ -2909,8 +2920,8 @@
 ;; not present in the original state.
 (define (tag-set-commands-for-closure nfa orig-state closure copy-cmds)
   (let ((num-tags (nfa-num-tags nfa))
-        (closure-summary (nfa-multi-state-mappings-summary closure))
-        (state-summary (nfa-multi-state-mappings-summary orig-state)))
+        (closure-summary (mst-mappings-summary closure))
+        (state-summary (mst-mappings-summary orig-state)))
     (let lp ((t 0) (cmds '()))
       (if (= t num-tags)
           cmds
@@ -2948,14 +2959,13 @@
 (define (find-reorder-commands-internal nfa closure dfa-states)
   (let ((num-states (nfa-num-states nfa))
         (num-tags (nfa-num-tags nfa))
-        (closure-summary (nfa-multi-state-mappings-summary closure)))
+        (closure-summary (mst-mappings-summary closure)))
     (let lp ((dfa-states dfa-states))
       (if (null? dfa-states)
           #f
-          (if (not (nfa-multi-state-same-states? (caar dfa-states) closure))
+          (if (not (mst-same-states? (caar dfa-states) closure))
               (lp (cdr dfa-states))
-              (let lp2 ((state-summary (nfa-multi-state-mappings-summary
-                                        (caar dfa-states)))
+              (let lp2 ((state-summary (mst-mappings-summary (caar dfa-states)))
                         (t 0) (cmds '()))
                 (if (= t num-tags)
                     (cons (caar dfa-states) cmds)
