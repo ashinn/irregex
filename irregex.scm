@@ -2096,8 +2096,7 @@
                   (lp1 next (get-start next) state res-src res-index finalizer)
                   (and index
                        (%irregex-match-end-chunk matches index)
-                       (or (not submatches?)
-                           (finalize! finalizer memory matches))
+                       (or (not finalizer) (finalize! finalizer memory matches))
                        #t))))
            (else
             (let* ((ch (string-ref str i))
@@ -2108,37 +2107,38 @@
                                (cdr state))))
               (cond
                (cell
-                (cond
-                 (submatches?
-                  (let ((cmds (dfa-cell-commands dfa cell)))
-                    (for-each (lambda (s)
-                                (let ((slot (vector-ref memory (cdr s)))
-                                      (chunk&position (cons src (+ i 1))))
-                                  (vector-set! slot (car s) chunk&position)))
-                              (cdr cmds))
-                    (for-each (lambda (c)
-                                (let* ((tag (vector-ref c 0))
-                                       (ss (vector-ref memory (vector-ref c 1)))
-                                       (ds (vector-ref memory (vector-ref c 2))))
-                                  (vector-set! ds tag (vector-ref ss tag))))
-                              (car cmds)))))
-                (let ((next (dfa-next-state dfa cell)))
-                 (cond
-                  ((dfa-finalizer dfa next) =>
-                   (lambda (new-finalizer)
-                     (lp2 (+ i 1) next src (+ i 1) new-finalizer)))
-                  (else (lp2 (+ i 1) next res-src res-index finalizer)))))
+                (let* ((next (dfa-next-state dfa cell))
+                       (new-finalizer (dfa-finalizer dfa next)))
+                  (cond
+                   (submatches?
+                    (let ((cmds (dfa-cell-commands dfa cell)))
+                      ;; Save match when we're moving from accepting state to
+                      ;; rejecting state; this could be the last accepting one.
+                      (cond ((and finalizer (not new-finalizer))
+                             (finalize! finalizer memory matches)))
+                      (for-each (lambda (s)
+                                  (let ((slot (vector-ref memory (cdr s)))
+                                        (chunk&position (cons src (+ i 1))))
+                                    (vector-set! slot (car s) chunk&position)))
+                                (cdr cmds))
+                      (for-each (lambda (c)
+                                  (let* ((tag (vector-ref c 0))
+                                         (ss (vector-ref memory (vector-ref c 1)))
+                                         (ds (vector-ref memory (vector-ref c 2))))
+                                    (vector-set! ds tag (vector-ref ss tag))))
+                                (car cmds)))))
+                  (if new-finalizer
+                      (lp2 (+ i 1) next src (+ i 1) new-finalizer)
+                      (lp2 (+ i 1) next res-src res-index #f))))
                (res-src
                 (cond
                  (index
                   (irregex-match-end-chunk-set! matches index res-src)
                   (irregex-match-end-index-set! matches index res-index)))
-                (cond (submatches?
-                       (finalize! finalizer memory matches)))
+                (cond (finalizer (finalize! finalizer memory matches)))
                 #t)
                ((and index (%irregex-match-end-chunk matches index))
-                (cond (submatches?
-                       (finalize! finalizer memory matches)))
+                (cond (finalizer (finalize! finalizer memory matches)))
                 #t)
                (else
                 #f))))))))))

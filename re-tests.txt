@@ -104,6 +104,7 @@ a([bc]*)(c+d)	abcd	y	&-\1-\2	abcd-b-cd
 a[bcd]*dcdcde	adcdcde	y	&	adcdcde
 a[bcd]+dcdcde	adcdcde	n	-	-
 (ab|a)b*c	abc	y	&-\1	abc-ab
+(.*)b	abc	y	&-\1	ab-a
 ((a)(b)c)(d)	abcd	y	\1-\2-\3-\4	abc-a-b-d
 ((a)(b)?c)(d)	abcd	y	\1-\2-\3-\4	abc-a-b-d
 ((a)(b)?c)(d)	acd	y	\1-\2-\3-\4	ac-a--d
