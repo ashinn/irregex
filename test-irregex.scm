@@ -74,8 +74,8 @@
    (fast)
    ))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; chunked irregex
+;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; ;; chunked irregex
 
 (define (rope . args)
   (map (lambda (x) (if (pair? x) x (list x 0 (string-length x)))) args))
@@ -356,6 +356,12 @@
                     (lambda (i m s) (cons (irregex-match-substring m) s))
                     '()
                     "poo poo platter"))
+  (test "*  x   "
+      (irregex-replace/all
+       (irregex '(: bos #\space) 'backtrack) "   x   " "*"))
+  (test "*  x   "
+      (irregex-replace/all
+       (irregex '(: bos #\space) 'dfa) "   x   " "*"))
   )
 
 (define (extract name irx str)

@@ -3745,7 +3745,12 @@
                       (lp (+ end 1) acc)
                       (let ((acc (kons i m acc)))
                         (irregex-reset-matches! matches)
-                        (lp end acc))))))))))
+                        ;; no need to continue looping if this is a
+                        ;; searcher - it's already consumed the only
+                        ;; available match
+                        (if (flag-set? (irregex-flags irx) ~searcher?)
+                            (finish end acc)
+                            (lp end acc)))))))))))
 
 (define (irregex-fold irx kons . args)
   (if (not (procedure? kons)) (error "irregex-fold: not a procedure" kons))
@@ -3776,7 +3781,12 @@
                           (lp end-src (+ end-index 1) acc))
                       (let ((acc (kons start i m acc)))
                         (irregex-reset-matches! matches)
-                        (lp end-src end-index acc))))))))))
+                        ;; no need to continue looping if this is a
+                        ;; searcher - it's already consumed the only
+                        ;; available match
+                        (if (flag-set? (irregex-flags irx) ~searcher?)
+                            (finish end-src end-index acc)
+                            (lp end-src end-index acc)))))))))))
 
 (define (irregex-fold/chunked irx kons . args)
   (if (not (procedure? kons)) (error "irregex-fold/chunked: not a procedure" kons))
