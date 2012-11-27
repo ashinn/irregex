@@ -362,6 +362,12 @@
   (test "*  x   "
       (irregex-replace/all
        (irregex '(: bos #\space) 'dfa) "   x   " "*"))
+  (test "***x***"
+      (irregex-replace/all
+       (irregex '(: #\space) 'backtrack) "   x   " "*"))
+  (test "***x***"
+      (irregex-replace/all
+       (irregex '(: #\space) 'dfa) "   x   " "*"))
   )
 
 (define (extract name irx str)
