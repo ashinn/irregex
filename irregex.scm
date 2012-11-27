@@ -33,6 +33,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; History
 ;;
+;; 0.9.1: 2012/11/27 - various accumulated bugfixes
 ;; 0.9.0: 2012/06/03 - Using tags for match extraction from Peter Bex.
 ;; 0.8.3: 2011/12/18 - various accumulated bugfixes
 ;; 0.8.2: 2010/08/28 - (...)? submatch extraction fix and alternate
