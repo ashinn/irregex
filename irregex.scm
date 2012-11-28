@@ -1858,11 +1858,11 @@
          (matches (irregex-new-matches irx))
          (i (if (pair? o) (car o) ((chunker-get-start cnk) src))))
     (irregex-match-chunker-set! matches cnk)
-    (irregex-search/matches irx cnk src i matches)))
+    (irregex-search/matches irx cnk (cons src i) src i matches)))
 
 ;; internal routine, can be used in loops to avoid reallocating the
 ;; match vector
-(define (irregex-search/matches irx cnk src i matches)
+(define (irregex-search/matches irx cnk init src i matches)
   (cond
    ((irregex-dfa irx)
     (cond
@@ -1896,16 +1896,15 @@
      (else
       #f)))
    (else
-    (let ((res (irregex-search/backtrack irx cnk src i matches)))
+    (let ((res (irregex-search/backtrack irx cnk init src i matches)))
       (if res (%irregex-match-fail-set! res #f))
       res))))
 
-(define (irregex-search/backtrack irx cnk src i matches)
+(define (irregex-search/backtrack irx cnk init src i matches)
   (let ((matcher (irregex-nfa irx))
         (str ((chunker-get-str cnk) src))
         (end ((chunker-get-end cnk) src))
-        (get-next (chunker-get-next cnk))
-        (init (cons src i)))
+        (get-next (chunker-get-next cnk)))
     (if (flag-set? (irregex-flags irx) ~searcher?)
         (matcher cnk init src str i end matches (lambda () #f))
         (let lp ((src2 src)
@@ -3723,35 +3722,38 @@
          (start (if (and (pair? o) (pair? (cdr o))) (cadr o) 0))
          (end (if (and (pair? o) (pair? (cdr o)) (pair? (cddr o)))
                   (caddr o)
-                  (string-length str))))
+                  (string-length str)))
+         (init-src (list str start end))
+         (init (cons init-src start)))
     (if (not (and (integer? start) (exact? start)))
         (error "irregex-fold: not an exact integer" start))
     (if (not (and (integer? end) (exact? end)))
         (error "irregex-fold: not an exact integer" end))
     (irregex-match-chunker-set! matches irregex-basic-string-chunker)
-    (let lp ((i start) (acc knil))
+    (let lp ((src init-src) (i start) (acc knil))
       (if (>= i end)
           (finish i acc)
           (let ((m (irregex-search/matches
                     irx
                     irregex-basic-string-chunker
-                    (list str i end)
+                    init
+                    src
                     i
                     matches)))
             (if (not m)
                 (finish i acc)
-                (let ((end (%irregex-match-end-index m 0)))
-                  (if (= end i)
+                (let ((j (%irregex-match-end-index m 0)))
+                  (if (= j i)
                       ;; skip one char forward if we match the empty string
-                      (lp (+ end 1) acc)
+                      (lp (list str (+ j 1) end) (+ j 1) acc)
                       (let ((acc (kons i m acc)))
                         (irregex-reset-matches! matches)
                         ;; no need to continue looping if this is a
                         ;; searcher - it's already consumed the only
                         ;; available match
                         (if (flag-set? (irregex-flags irx) ~searcher?)
-                            (finish end acc)
-                            (lp end acc)))))))))))
+                            (finish j acc)
+                            (lp (list str j end) j acc)))))))))))
 
 (define (irregex-fold irx kons . args)
   (if (not (procedure? kons)) (error "irregex-fold: not a procedure" kons))
@@ -3764,13 +3766,14 @@
          (finish (or (and (pair? o) (car o)) (lambda (src i acc) acc)))
          (i (if (and (pair? o) (pair? (cdr o)))
                 (cadr o)
-                ((chunker-get-start cnk) start))))
+                ((chunker-get-start cnk) start)))
+         (init (cons start i)))
     (if (not (integer? i)) (error "irregex-fold/chunked: not an integer" i))
     (irregex-match-chunker-set! matches cnk)
     (let lp ((start start) (i i) (acc knil))
       (if (not start)
           (finish start i acc)
-          (let ((m (irregex-search/matches irx cnk start i matches)))
+          (let ((m (irregex-search/matches irx cnk init start i matches)))
             (if (not m)
                 (finish start i acc)
                 (let ((end-src (%irregex-match-end-chunk m 0))
