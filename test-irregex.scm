@@ -368,6 +368,18 @@
   (test "***x***"
       (irregex-replace/all
        (irregex '(: #\space) 'dfa) "   x   " "*"))
+  (test "xaac"
+      (irregex-replace/all
+       (irregex '(or (seq bos "a") (seq bos "b")) 'backtrack) "aaac" "x"))
+  (test "xaac"
+      (irregex-replace/all
+       (irregex '(or (seq bos "a") (seq bos "b")) 'dfa) "aaac" "x"))
+  (test "xaac"
+      (irregex-replace/all (irregex '(or (seq bos "a") "b") 'backtrack)
+                           "aaac" "x"))
+  (test "xaac"
+      (irregex-replace/all (irregex '(or (seq bos "a") "b") 'dfa)
+                           "aaac" "x"))
   )
 
 (define (extract name irx str)
