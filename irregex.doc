@@ -69,8 +69,8 @@ If you are using an R6RS Scheme, you can instead
 There are also a handful of utility procedures described below you may
 wish to use in irregex-utils.scm.
 
-If you are using Chicken Scheme, you can just run chicken-setup, or
-wait for it to show up in the eggs repository.
+If you are using Chicken Scheme IrRegex is built in as a core unit, so
+no need to install it.  To use it, you just need to \q{(use irregex)}.
 
 \section{Specification}
 
