@@ -139,7 +139,7 @@ Examples:
 
   \q{(irregex-search "foobar" "abcFOOBARdef") => #f}
 
-  \q{(irregex-search "foobar" "abcFOOBARdef" 'i) => #<match>}
+  \q{(irregex-search (irregex "foobar" 'i) "abcFOOBARdef") => #<match>}
 
   \q{(irregex-search '(w/nocase "foobar") "abcFOOBARdef") => #<match>}
 
