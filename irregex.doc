@@ -514,11 +514,11 @@ pattern.  The most common cases are specifically anchoring some
 pattern to the beginning or end of a word or line or even the whole
 string.  For example, to match on the end of a word:
 
-  \q{(irregex-match '(: "foo" eow) "foo") => #<match>}
+  \q{(irregex-search '(: "foo" eow) "foo") => #<match>}
 
-  \q{(irregex-match '(: "foo" eow) "foo!") => #<match>}
+  \q{(irregex-search '(: "foo" eow) "foo!") => #<match>}
 
-  \q{(irregex-match '(: "foo" eow) "foof") => #f}
+  \q{(irregex-search '(: "foo" eow) "foof") => #f}
 
 The \q{bow}, \q{bol}, \q{eol}, \q{bos} and \q{eos} work similarly.
 \q{nwb} asserts that you are not in a word-boundary - if replaced for
