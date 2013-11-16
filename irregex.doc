@@ -533,8 +533,8 @@ look-ahead and look-behind patterns.  Perl look-behind patterns are
 limited to a fixed length, however the IrRegex versions have no such
 limit.
 
-  \q{(irregex-match '(: "regular" (look-ahead " expression"))
-                    "regular expression")
+  \q{(irregex-search '(: "regular" (look-ahead " expression"))
+                     "regular expression")
       => #<match>}
 
 The most general case, of course, would be an \q{and} pattern to
