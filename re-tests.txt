@@ -108,7 +108,7 @@ a(?!(b|c))xc	axc	y	&-\1	axc-
 (a|b)(?<=(a))c	ac	y	&-\1-\2	ac-a-a
 (a|b)(?<=(a))c	bc	n	-	-
 (?<=(a))bc	bc	n	-	-
-(?<=(a))bc	abc	y	&-\1	bc-a
+.(?<=(a))bc	abc	y	&-\1	abc-a
 (a|b)(?<!(a))c	ac	n	-	-
 (a|b)(?<!(a))c	bc	y	&-\1-\2	bc-b-
 (?<!(a))bc	abc	n	-	-

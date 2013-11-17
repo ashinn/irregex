@@ -321,6 +321,17 @@
                   #t
                   (chunk-before? cnk next b))))))
 
+;; For look-behind searches, wrap an existing chunker such that it
+;; returns the same results but ends at a given point.
+(define (wrap-end-chunker cnk src i)
+  (make-irregex-chunker
+   (lambda (x) (and (not (eq? x src)) ((chunker-get-next cnk) x)))
+   (chunker-get-str cnk)
+   (chunker-get-start cnk)
+   (lambda (x) (if (eq? x src) i ((chunker-get-end cnk) x)))
+   (chunker-get-substring cnk)
+   (chunker-get-subchunk cnk)))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; String Utilities
 
@@ -3179,16 +3190,13 @@
                         flags
                         (lambda (cnk init src str i end matches fail) i))))
                (lambda (cnk init src str i end matches fail)
-                 (let* ((prev ((chunker-get-substring cnk)
-                               (car init)
-                               (cdr init)
-                               src
-                               i))
-                        (len (string-length prev))
-                        (src2 (list prev 0 len)))
+                 (let* ((cnk* (wrap-end-chunker cnk src i))
+                        (str* ((chunker-get-str cnk*) (car init)))
+                        (i* (cdr init))
+                        (end* ((chunker-get-end cnk*) (car init))))
                    (if ((if (eq? (car sre) 'look-behind) (lambda (x) x) not)
-                        (check irregex-basic-string-chunker
-                               (cons src2 0) src2 prev 0 len matches (lambda () #f)))
+                        (check cnk* init (car init) str* i* end* matches
+                               (lambda () #f)))
                        (next cnk init src str i end matches fail)
                        (fail))))))
             ((atomic)
