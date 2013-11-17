@@ -111,7 +111,7 @@ a(?!(b|c))xc	axc	y	&-\1	axc-
 .(?<=(a))bc	abc	y	&-\1	abc-a
 (a|b)(?<!(a))c	ac	n	-	-
 (a|b)(?<!(a))c	bc	y	&-\1-\2	bc-b-
-(?<!(a))bc	abc	n	-	-
+.(?<!(a))bc	abc	n	-	-
 (?<!(a))bc	bc	y	&-\1	bc-
 a([bc]*)c*	abc	y	&-\1	abc-bc
 a([bc]*)(c*d)	abcd	y	&-\1-\2	abcd-bc-d
