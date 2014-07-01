@@ -1,9 +1,13 @@
 
 ;; derived from Gauche's regex tests
 
-(use srfi-1 test)
+(use srfi-1)
+(use gauche.test)
 (load "irregex.scm")
 (load "irregex-utils.scm")
+
+(define (test-begin . o)
+  (test-start (if (pair? o) (car o) "tests")))
 
 (define-syntax let1
   (syntax-rules ()
@@ -27,7 +31,8 @@
 
 (define (rxmatch-after m . o)
   (substring (car (irregex-match-start-chunk m 0))
-             (irregex-match-end-index m (if (pair? o) (car o) 0))))
+             (irregex-match-end-index m (if (pair? o) (car o) 0))
+             (string-length (car (irregex-match-start-chunk m 0)))))
 
 (define (rxmatch-before m . o)
   (substring (car (irregex-match-start-chunk m 0))

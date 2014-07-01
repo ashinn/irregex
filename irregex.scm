@@ -27,12 +27,11 @@
 ;; performance tuning, but you can only go so far while staying
 ;; portable.  AND-LET*, SRFI-9 records and custom macros would've been
 ;; nice.
-;;
-;; Version 1.0 will be released as a portable R7RS library.
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; History
 ;;
+;; 0.9.3: 2014/07/01 - R7RS library
 ;; 0.9.2: 2012/11/29 - fixed a bug in -fold on conditional bos patterns
 ;; 0.9.1: 2012/11/27 - various accumulated bugfixes
 ;; 0.9.0: 2012/06/03 - Using tags for match extraction from Peter Bex.
