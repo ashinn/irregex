@@ -6,7 +6,7 @@
 	    maybe-string->sre irregex?  irregex-match-data?
 	    irregex-new-matches irregex-reset-matches!  irregex-search
 	    irregex-search/matches irregex-match
-	    irregex-search/chunked irregex-match/chunked
+	    irregex-search/chunked irregex-match/chunked irregex-fold/chunked
 	    make-irregex-chunker irregex-match-substring
 	    irregex-match-subchunk irregex-match-start-source
 	    irregex-match-start-index irregex-match-end-source
