@@ -32,5 +32,8 @@ email	(")?([[:alnum:]!#$%&'*+/=?^_`{|}~-])+(\.[[:alnum:]!#$%&'*+/=?^_`{|}~-]+)*(
 
 # Expensive examples which may hang or explode
 backtracker	a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	x	100	100
-expontential dfa	a[ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab]	abbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb	b	1	100
-#backtracker + expontential dfa	a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa[ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab]	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbb	b	1	100
+exponential dfa	a[ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab]	abbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb	b	1	100
+#backtracker + exponential dfa	a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa[ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab][ab]	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbb	b	1	100
+
+# Found by Caolan McMahon
+exponential backtracking for repeating pattern	[a-z]{0,42}	testing@	b	1	1
