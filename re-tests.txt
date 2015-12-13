@@ -73,6 +73,18 @@ a**	-	c	-	-
 (a+|b)*	ab	y	&-\1	ab-b
 (a+|b)+	ab	y	&-\1	ab-b
 (a+|b)?	ab	y	&-\1	a-a
+(a+|b){0,2}	ab	y	&-\1	ab-b
+(a+|b){1,2}	ab	y	&-\1	ab-b
+^(a+|b){1,2}$	ab	y	&-\1	ab-b
+^(a+|b){1,2}$	abc	n	-	-
+^(a+|b){0,1}$	ab	n	-	-
+\'(**? 0 2 ($ (or (+ #\a) #\b)))b	ab	y	&-\1	ab-a
+\'(**? 0 2 ($ (or (+ #\a) #\b)))b	aab	y	&-\1	aab-aa
+\'(**? 0 2 ($ (or (+ #\a) #\b)))b	abb	y	&-\1	ab-a
+^\'(**? 0 2 ($ (or (+ #\a) #\b)))b$	abb	y	&-\1	abb-b
+\'(**? 1 2 ($ (or (+ #\a) #\b)))b	b	n	-	-
+\'(**? 0 2 ($ (or (+ #\a) #\b)))ab	ab	y	&-\1	ab-
+\'(**? 2 3 ($ (or (+ #\a) #\b)))b	ab	n	-	-
 [^ab]*	cde	y	&	cde
 (^)*	-	c	-	-
 (ab|)*	-	c	-	-

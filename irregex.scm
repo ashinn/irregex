@@ -1,6 +1,6 @@
 ;;;; irregex.scm -- IrRegular Expressions
 ;;
-;; Copyright (c) 2005-2012 Alex Shinn.  All rights reserved.
+;; Copyright (c) 2005-2015 Alex Shinn.  All rights reserved.
 ;; BSD-style license: http://synthcode.com/license.txt
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -30,7 +30,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; History
-;;
+;; 0.9.4: ????/??/?? - performance improvement for {n,m} matches
 ;; 0.9.3: 2014/07/01 - R7RS library
 ;; 0.9.2: 2012/11/29 - fixed a bug in -fold on conditional bos patterns
 ;; 0.9.1: 2012/11/27 - various accumulated bugfixes
@@ -3125,7 +3125,7 @@
              (rec `(** ,(cadr sre) ,(cadr sre) ,@(cddr sre))))
             ((>=)
              (rec `(** ,(cadr sre) #f ,@(cddr sre))))
-            ((** **?)
+            ((**)
              (cond
               ((or (and (number? (cadr sre))
                         (number? (caddr sre))
@@ -3133,27 +3133,63 @@
                    (and (not (cadr sre)) (caddr sre)))
                (lambda (cnk init src str i end matches fail) (fail)))
               (else
-               (let* ((from (cadr sre))
-                      (to (caddr sre))
-                      (? (if (eq? '** (car sre)) '? '??))
-                      (* (if (eq? '** (car sre)) '* '*?))
-                      (sre (sre-sequence (cdddr sre)))
-                      (x-sre (sre-strip-submatches sre))
-                      (next (if to
-                                (if (= from to)
-                                    next
-                                    (fold (lambda (x next)
-                                            (lp `(,? ,sre) n flags next))
-                                          next
-                                          (zero-to (- to from))))
-                                (rec `(,* ,sre)))))
-                 (if (zero? from)
-                     next
-                     (lp `(seq ,@(map (lambda (x) x-sre) (zero-to (- from 1)))
-                               ,sre)
-                         n
-                         flags
-                         next))))))
+               (letrec
+                   ((from (cadr sre))
+                    (to (caddr sre))
+                    (body-contents (sre-sequence (cdddr sre)))
+                    (body
+                     (lambda (count)
+                       (lp body-contents
+                           n
+                           flags
+                           (lambda (cnk init src str i end matches fail)
+                             (if (and to (= count to))
+                                 (next cnk init src str i end matches fail)
+                                 ((body (+ 1 count))
+                                  cnk init src str i end matches
+                                  (lambda ()
+                                    (if (>= count from)
+                                        (next cnk init src str i end matches fail)
+                                        (fail))))))))))
+                 (lambda (cnk init src str i end matches fail)
+                   ((body 1) cnk init src str i end matches
+                    (lambda ()
+                      (if (zero? from)
+                          (next cnk init src str i end matches fail)
+                          (fail)))))))))
+            ((**?)
+             (cond
+              ((or (and (number? (cadr sre))
+                        (number? (caddr sre))
+                        (> (cadr sre) (caddr sre)))
+                   (and (not (cadr sre)) (caddr sre)))
+               (lambda (cnk init src str i end matches fail) (fail)))
+              (else
+               (letrec
+                   ((from (cadr sre))
+                    (to (caddr sre))
+                    (body-contents (sre-sequence (cdddr sre)))
+                    (body
+                     (lambda (count)
+                       (lp body-contents
+                           n
+                           flags
+                           (lambda (cnk init src str i end matches fail)
+                             (if (< count from)
+                                 ((body (+ 1 count)) cnk init
+                                  src str i end matches fail)
+                                 (next cnk init src str i end matches
+                                       (lambda ()
+                                         (if (and to (= count to))
+                                             (fail)
+                                             ((body (+ 1 count)) cnk init
+                                              src str i end matches fail))))))))))
+                 (lambda (cnk init src str i end matches fail)
+                   (if (zero? from)
+                       (next cnk init src str i end matches
+                             (lambda ()
+                               ((body 1) cnk init src str i end matches fail)))
+                       ((body 1) cnk init src str i end matches fail)))))))
             ((word)
              (rec `(seq bow ,@(cdr sre) eow)))
             ((word+)
