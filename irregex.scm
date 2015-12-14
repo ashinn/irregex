@@ -30,7 +30,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; History
-;; 0.9.4: ????/??/?? - performance improvement for {n,m} matches
+;; 0.9.4: 2015/12/14 - performance improvement for {n,m} matches
 ;; 0.9.3: 2014/07/01 - R7RS library
 ;; 0.9.2: 2012/11/29 - fixed a bug in -fold on conditional bos patterns
 ;; 0.9.1: 2012/11/27 - various accumulated bugfixes
@@ -947,7 +947,10 @@
                                                    #\,))
                             (n (string->number (car s2)))
                             (m (and (pair? (cdr s2))
-                                    (string->number (cadr s2)))))
+                                    (string->number (cadr s2))))
+                            (lazy? (and (< (+ j 1) end)
+                                        (eqv? #\? (string-ref str (+ j 1)))))
+                            (next (if lazy? (+ j 2) (+ j 1))))
                        (cond
                         ((or (not n)
                              (and (pair? (cdr s2))
@@ -955,11 +958,15 @@
                                   (not m)))
                          (error "invalid {n} repetition syntax" s2))
                         ((null? (cdr s2))
-                         (lp (+ j 1) (+ j 1) flags `((= ,n ,x) ,@tail) st))
+                         (lp next next flags `((= ,n ,x) ,@tail) st))
                         (m
-                         (lp (+ j 1) (+ j 1) flags `((** ,n ,m ,x) ,@tail) st))
+                         (if lazy?
+                             (lp next next flags `((**? ,n ,m ,x) ,@tail) st)
+                             (lp next next flags `((** ,n ,m ,x) ,@tail) st)))
                         (else
-                         (lp (+ j 1) (+ j 1) flags `((>= ,n ,x) ,@tail) st)
+                         (if lazy?
+                             (lp next next flags `((>=? ,n ,x) ,@tail) st)
+                             (lp next next flags `((>= ,n ,x) ,@tail) st))
                          )))))))))
               ((#\\)
                (cond

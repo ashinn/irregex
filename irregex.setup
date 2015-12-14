@@ -1,9 +1,13 @@
 
-(compile irregex-chicken.scm -s -O3 -f -inline -lambda-lift -disable-interrupts ;-d0
+;; You almost certainly don't want this file.  irregex is
+;; distributed with chicken.  When testing just run
+;; "csi -s test-irregex.scm".
+
+(compile irregex-chicken.scm -s -O3 -f -inline -disable-interrupts ;-d0
          -j irregex -o irregex.so)
 (compile irregex.import.scm -s -Os -d0)
 (install-extension
  'irregex
  '("irregex.so")
- `((version 0.9.3)
+ `((version 0.9.4)
    (documentation "irregex.html")))
