@@ -3151,12 +3151,14 @@
                                     (if (>= count from)
                                         (next cnk init src str i end matches fail)
                                         (fail))))))))))
-                 (lambda (cnk init src str i end matches fail)
-                   ((body 1) cnk init src str i end matches
-                    (lambda ()
-                      (if (zero? from)
-                          (next cnk init src str i end matches fail)
-                          (fail)))))))))
+                 (if (and (zero? from) to (zero? to))
+                     next
+                     (lambda (cnk init src str i end matches fail)
+                       ((body 1) cnk init src str i end matches
+                        (lambda ()
+                          (if (zero? from)
+                              (next cnk init src str i end matches fail)
+                              (fail))))))))))
             ((**?)
              (cond
               ((or (and (number? (cadr sre))
@@ -3184,12 +3186,14 @@
                                              (fail)
                                              ((body (+ 1 count)) cnk init
                                               src str i end matches fail))))))))))
-                 (lambda (cnk init src str i end matches fail)
-                   (if (zero? from)
-                       (next cnk init src str i end matches
-                             (lambda ()
-                               ((body 1) cnk init src str i end matches fail)))
-                       ((body 1) cnk init src str i end matches fail)))))))
+                 (if (and (zero? from) to (zero? to))
+                     next
+                     (lambda (cnk init src str i end matches fail)
+                       (if (zero? from)
+                           (next cnk init src str i end matches
+                                 (lambda ()
+                                   ((body 1) cnk init src str i end matches fail)))
+                           ((body 1) cnk init src str i end matches fail))))))))
             ((word)
              (rec `(seq bow ,@(cdr sre) eow)))
             ((word+)
