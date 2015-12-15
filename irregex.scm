@@ -947,10 +947,7 @@
                                                    #\,))
                             (n (string->number (car s2)))
                             (m (and (pair? (cdr s2))
-                                    (string->number (cadr s2))))
-                            (lazy? (and (< (+ j 1) end)
-                                        (eqv? #\? (string-ref str (+ j 1)))))
-                            (next (if lazy? (+ j 2) (+ j 1))))
+                                    (string->number (cadr s2)))))
                        (cond
                         ((or (not n)
                              (and (pair? (cdr s2))
@@ -958,15 +955,11 @@
                                   (not m)))
                          (error "invalid {n} repetition syntax" s2))
                         ((null? (cdr s2))
-                         (lp next next flags `((= ,n ,x) ,@tail) st))
+                         (lp (+ j 1) (+ j 1) flags `((= ,n ,x) ,@tail) st))
                         (m
-                         (if lazy?
-                             (lp next next flags `((**? ,n ,m ,x) ,@tail) st)
-                             (lp next next flags `((** ,n ,m ,x) ,@tail) st)))
+                         (lp (+ j 1) (+ j 1) flags `((** ,n ,m ,x) ,@tail) st))
                         (else
-                         (if lazy?
-                             (lp next next flags `((>=? ,n ,x) ,@tail) st)
-                             (lp next next flags `((>= ,n ,x) ,@tail) st))
+                         (lp (+ j 1) (+ j 1) flags `((>= ,n ,x) ,@tail) st)
                          )))))))))
               ((#\\)
                (cond
