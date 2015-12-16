@@ -2,12 +2,9 @@
 ;; derived from Gauche's regex tests
 
 (use srfi-1)
-(use gauche.test)
+(use test)
 (load "irregex.scm")
 (load "irregex-utils.scm")
-
-(define (test-begin . o)
-  (test-start (if (pair? o) (car o) "tests")))
 
 (define-syntax let1
   (syntax-rules ()
