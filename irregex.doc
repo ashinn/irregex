@@ -26,7 +26,7 @@ force, -- the Baker Street irregulars."
 
 \eval(display "<br /><br />\n\n")
 
-A fully portable and efficient R[456]RS implementation of regular
+A fully portable and efficient R[4567]RS implementation of regular
 expressions, supporting both POSIX syntax with various (irregular)
 PCRE extensions, as well as SCSH's SRE syntax, with various aliases
 for commonly used patterns.  DFA matching is used when possible,
