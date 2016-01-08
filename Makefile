@@ -45,7 +45,7 @@ distclean: clean
 dist: doc
 	rm -f irregex-`cat VERSION`.tar.gz
 	mkdir irregex-`cat VERSION`
-	for f in `hg manifest`; do mkdir -p irregex-`cat VERSION`/`dirname $$f`; ln -s `pwd`/$$f irregex-`cat VERSION`/$$f; done
+	for f in `git ls-files`; do mkdir -p irregex-`cat VERSION`/`dirname $$f`; ln -s `pwd`/$$f irregex-`cat VERSION`/$$f; done
 	cd irregex-`cat VERSION`; for f in `echo ../*.html`; do ln -s $$f; done; cd ..
 	tar cphzvf irregex-`cat VERSION`.tar.gz irregex-`cat VERSION`
 	rm -rf irregex-`cat VERSION`
