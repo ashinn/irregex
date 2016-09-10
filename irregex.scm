@@ -1,6 +1,6 @@
 ;;;; irregex.scm -- IrRegular Expressions
 ;;
-;; Copyright (c) 2005-2015 Alex Shinn.  All rights reserved.
+;; Copyright (c) 2005-2016 Alex Shinn.  All rights reserved.
 ;; BSD-style license: http://synthcode.com/license.txt
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -30,6 +30,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; History
+;; 0.9.5: 2016/09/10 - fixed a bug in irregex-fold handling of bow
 ;; 0.9.4: 2015/12/14 - performance improvement for {n,m} matches
 ;; 0.9.3: 2014/07/01 - R7RS library
 ;; 0.9.2: 2012/11/29 - fixed a bug in -fold on conditional bos patterns
@@ -3400,11 +3401,10 @@
                (fail))))
         ((bow)
          (lambda (cnk init src str i end matches fail)
-           (if (and (or (if (> i ((chunker-get-start cnk) src))
-                            (not (char-alphanumeric? (string-ref str (- i 1))))
-                            (let ((ch (chunker-prev-char cnk src end)))
-                              (and ch (not (char-alphanumeric? ch)))))
-                        (and (eq? src (car init)) (eqv? i (cdr init))))
+           (if (and (if (> i ((chunker-get-start cnk) src))
+                        (not (char-alphanumeric? (string-ref str (- i 1))))
+                        (let ((ch (chunker-prev-char cnk init src)))
+                          (or (not ch) (not (char-alphanumeric? ch)))))
                     (if (< i end)
                         (char-alphanumeric? (string-ref str i))
                         (let ((next ((chunker-get-next cnk) src)))

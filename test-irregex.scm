@@ -380,6 +380,8 @@
   (test "xaac"
       (irregex-replace/all (irregex '(or (seq bos "a") "b") 'dfa)
                            "aaac" "x"))
+  (test '("foo" " " "foo" " " "b" "a" "r" " " "foo")
+      (irregex-extract '(or (: bow "foo" eow) any) "foo foo bar foo"))
   )
 
 (define (extract name irx str)
