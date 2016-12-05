@@ -781,7 +781,7 @@ doesn't help when irregex is able to build a DFA.
 
 \subsubsection*{(sre->string <sre>)}
 
-Convert an SRE to a POSIX-style regular expression string, if
+Convert an SRE to a PCRE-style regular expression string, if
 possible.
 
 \section{Roadmap}
