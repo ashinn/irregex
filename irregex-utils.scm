@@ -89,7 +89,7 @@
         (case (car x)
           ((: seq)
            (cond
-            ((and (pair? (cddr x)) (pair? (cddr x)) (not (eq? x obj)))
+            ((and (pair? (cdr x)) (pair? (cddr x)) (not (eq? x obj)))
              (display "(?:" out) (for-each lp (cdr x)) (display ")" out))
             (else (for-each lp (cdr x)))))
           ((submatch)
