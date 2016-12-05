@@ -30,6 +30,8 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; History
+;; 0.9.6: 2016/12/05 - fixed exponential memory use of + in compilation
+;;                     of backtracking matcher.
 ;; 0.9.5: 2016/09/10 - fixed a bug in irregex-fold handling of bow
 ;; 0.9.4: 2015/12/14 - performance improvement for {n,m} matches
 ;; 0.9.3: 2014/07/01 - R7RS library
@@ -3084,16 +3086,7 @@
               ((sre-empty? (sre-sequence (cdr sre)))
                (error "invalid sre: empty *" sre))
               (else
-               (letrec
-                   ((body
-                     (lp (sre-sequence (cdr sre))
-                         n
-                         flags
-                         (lambda (cnk init src str i end matches fail)
-                           (body cnk init src str i end matches
-                                 (lambda ()
-                                   (next cnk init src str i end matches fail)
-                                   ))))))
+               (let ((body (rec (list '+ (sre-sequence (cdr sre))))))
                  (lambda (cnk init src str i end matches fail)
                    (body cnk init src str i end matches
                          (lambda ()
@@ -3118,10 +3111,21 @@
                          (lambda ()
                            (body cnk init src str i end matches fail))))))))
             ((+)
-             (lp (sre-sequence (cdr sre))
-                 n
-                 flags
-                 (rec (list '* (sre-sequence (cdr sre))))))
+             (cond
+              ((sre-empty? (sre-sequence (cdr sre)))
+               (error "invalid sre: empty +" sre))
+              (else
+               (letrec
+                   ((body
+                     (lp (sre-sequence (cdr sre))
+                         n
+                         flags
+                         (lambda (cnk init src str i end matches fail)
+                           (body cnk init src str i end matches
+                                 (lambda ()
+                                   (next cnk init src str i end matches fail)
+                                   ))))))
+                 body))))
             ((=)
              (rec `(** ,(cadr sre) ,(cadr sre) ,@(cddr sre))))
             ((>=)
