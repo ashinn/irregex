@@ -9,5 +9,5 @@
 (install-extension
  'irregex
  '("irregex.so")
- `((version 0.9.4)
+ `((version 0.9.6)
    (documentation "irregex.html")))
