@@ -31,7 +31,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; History
 ;; 0.9.6: 2016/12/05 - fixed exponential memory use of + in compilation
-;;                     of backtracking matcher.
+;;                     of backtracking matcher (CVE-2016-9954).
 ;; 0.9.5: 2016/09/10 - fixed a bug in irregex-fold handling of bow
 ;; 0.9.4: 2015/12/14 - performance improvement for {n,m} matches
 ;; 0.9.3: 2014/07/01 - R7RS library
