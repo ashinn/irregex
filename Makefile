@@ -1,3 +1,18 @@
+PACKAGE = irregex
+
+CHEZ = scheme
+INSTALL = install -D
+
+PREFIX = /usr/local
+EXEC_PREFIX = ${PREFIX}
+BINDIR = ${EXEC_PREFIX}/bin
+LIBDIR = ${EXEC_PREFIX}/lib
+INCLUDEDIR = ${PREFIX}/include
+DATAROOTDIR = ${PREFIX}/share
+DATADIR = ${DATAROOTDIR}
+MANDIR = ${DATAROOTDIR}/man
+INFODIR = ${DATAROOTDIR}/info
+DOCDIR = ${DATAROOTDIR}/doc/${PACKAGE}-`cat VERSION`
 
 .PHONY: all clean distclean test doc
 
@@ -49,3 +64,20 @@ dist: doc
 	cd irregex-`cat VERSION`; for f in `echo ../*.html`; do ln -s $$f; done; cd ..
 	tar cphzvf irregex-`cat VERSION`.tar.gz irregex-`cat VERSION`
 	rm -rf irregex-`cat VERSION`
+
+chezversion ::= $(shell echo '(call-with-values scheme-version-number (lambda (a b c) (format \#t "~d.~d" a b)))' | ${CHEZ} -q)
+schemedir = ${LIBDIR}/csv${chezversion}-site
+
+chez-build:
+	$(CHEZ) --program compile-all-chez.ss
+
+chez-install:
+	find . -type f -regex ".*.so" -exec sh -c '${INSTALL} -t ${schemedir}/$$(dirname $$1) $$1' _ {} \;
+	${INSTALL} -t ${DOCDIR} README
+
+chez-install-src:
+	find . -type f -regex "irregex.\(chezscheme.sls\|scm\)" -exec sh -c '${INSTALL} -t ${schemedir}/$$(dirname $$1) $$1' _ {} \;
+	find . -type f -regex "irregex-utils.\(chezscheme.sls\|scm\)" -exec sh -c '${INSTALL} -t ${schemedir}/$$(dirname $$1) $$1' _ {} \;
+
+chez-install-doc: doc
+	${INSTALL} -t ${DOCDIR} irregex.html irregex.css
