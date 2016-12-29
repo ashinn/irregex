@@ -254,7 +254,7 @@ The optional \q{<finish>} takes two arguments:
 
   \q{(<finish> <from-index> <seed>)}
 
-which simiarly allows you to pick up the unmatched tail of the string,
+which similarly allows you to pick up the unmatched tail of the string,
 and defaults to just returning the \q{<seed>}.
 
 \q{<start>} and \q{<end>} are numeric indices letting you specify the
