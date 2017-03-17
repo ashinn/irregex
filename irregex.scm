@@ -95,11 +95,14 @@
 (define (irregex-lengths x) (vector-ref x 6))
 (define (irregex-names x) (vector-ref x 7))
 
-(define (vector-copy v)
-  (let ((r (make-vector (vector-length v))))
-    (do ((i (- (vector-length v) 1) (- i 1)))
-        ((< i 0) r)
-      (vector-set! r i (vector-ref v i)))))
+(cond-expand
+  (larceny)
+  (else
+   (define (vector-copy v)
+     (let ((r (make-vector (vector-length v))))
+       (do ((i (- (vector-length v) 1) (- i 1)))
+	   ((< i 0) r)
+	 (vector-set! r i (vector-ref v i)))))))
 
 (define (irregex-new-matches irx)
   (make-irregex-match (irregex-num-submatches irx) (irregex-names irx)))
