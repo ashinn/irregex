@@ -15,5 +15,5 @@
           irregex-dfa irregex-dfa/search
           irregex-nfa irregex-flags irregex-lengths irregex-names
           irregex-num-submatches irregex-extract irregex-split)
-  (import (scheme base) (scheme char) (scheme cxr))
+  (import (except (scheme base) vector-copy) (scheme char) (scheme cxr))
   (include "irregex.scm"))
