@@ -1339,12 +1339,11 @@
                              (unicode-range-up-to hi-ls)))
         (let lp ((lo-ls lo-ls) (hi-ls hi-ls))
           (cond
-           ((null? lo-ls)
-            '())
            ((= (car lo-ls) (car hi-ls))
             (sre-sequence
-             (list (integer->char (car lo-ls))
-                   (lp (cdr lo-ls) (cdr hi-ls)))))
+              (cons (integer->char (car lo-ls))
+                (if (null? (cdr lo-ls)) '()
+                    (cons (lp (cdr lo-ls) (cdr hi-ls)) '())))))
            ((= (+ (car lo-ls) 1) (car hi-ls))
             (sre-alternate (list (unicode-range-up-from lo-ls)
                                  (unicode-range-up-to hi-ls))))
