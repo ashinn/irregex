@@ -17,7 +17,8 @@
   irregex-nfa irregex-flags irregex-lengths irregex-names
   irregex-num-submatches irregex-extract irregex-split
   )
-  (import scheme)
-  (import chicken)
+  (cond-expand
+    (chicken-5 (import scheme (chicken base)))
+    (else (import scheme chicken)))
   (include "irregex.scm")
 )

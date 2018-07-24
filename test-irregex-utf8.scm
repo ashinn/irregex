@@ -1,6 +1,8 @@
 #!/usr/local/bin/csi -script
 
-(use test extras utils)
+(cond-expand
+  (chicken-5 (import test))
+  (else (use test extras utils)))
 (load "irregex.scm")
 
 (test-begin)

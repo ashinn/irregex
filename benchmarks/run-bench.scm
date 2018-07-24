@@ -1,5 +1,8 @@
 
-(use chicken extras regex data-structures srfi-13)
+(cond-expand
+  (chicken-5 (import srfi-13 (chicken io) (chicken string) (chicken time)))
+  (else (use extras data-structures srfi-13)))
+
 (include "../irregex")
 
 (define-syntax time-expr
@@ -49,7 +52,7 @@
       (let ((line (read-line in)))
         (cond
          ((eof-object? line))
-         ((string-match "^\\s*(?:#.*)?$" line)
+         ((irregex-match "^\\s*(?:#.*)?$" line)
           (lp))
          (else
           (let ((ls (string-split line "\t")))

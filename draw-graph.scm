@@ -16,6 +16,9 @@
 ;;
 
 ;(use utf8)                              ; needed?
+(cond-expand
+  (chicken-5 (import (chicken process-context) (chicken format) (chicken string)))
+  (else))
 
 (include "irregex.scm")
 
