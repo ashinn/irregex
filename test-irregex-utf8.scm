@@ -1,6 +1,9 @@
 #!/usr/local/bin/csi -script
 
-(use test extras utils irregex)
+(cond-expand
+  (chicken-5 (import test))
+  (else (use test extras utils)))
+(load "irregex.scm")
 
 (test-begin)
 
@@ -29,5 +32,9 @@
 (test-assert (not (irregex-search "(?u:<[^あ-ん語]*>)" "<あん>")))
 (test-assert (not (irregex-search "(?u:<[^あ-ん語]*>)" "<ひらがな>")))
 (test-assert (not (irregex-search "(?u:<[^あ-ん語]*>)" "<語>")))
+
+(test-assert (irregex-search "(?u:[é])" "é"))
+(test-assert (not (irregex-search "(?u:[é])" "e")))
+(test-assert (not (irregex-search "(?u:[一二])" "三四")))
 
 (test-end)

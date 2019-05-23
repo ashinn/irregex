@@ -3,7 +3,9 @@
 ;; just run this file as "csi -script test-all.scm" to run the full
 ;; test suite
 
-(use test extras utils irregex)
+(cond-expand
+  (chicken-5 (import test (chicken irregex)))
+  (else (use test extras utils irregex)))
 
 (test-begin)
 

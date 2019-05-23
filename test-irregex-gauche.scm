@@ -1,8 +1,9 @@
 
 ;; derived from Gauche's regex tests
 
-(use srfi-1)
-(use test)
+(cond-expand
+  (chicken-5 (import srfi-1 test))
+  (else (use srfi-1 test)))
 (load "irregex.scm")
 (load "irregex-utils.scm")
 

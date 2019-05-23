@@ -1,6 +1,9 @@
 #!/usr/local/bin/csi -script
 
-(use test extras utils matchable); regexp pregexp
+(cond-expand
+  (chicken-5 (import test matchable (chicken format) (chicken port) (chicken io) (chicken string)))
+  (else (use test extras utils matchable))) ; regexp pregexp
+
 (load "irregex.scm")
 
 (define (subst-matches matches subst)

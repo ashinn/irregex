@@ -1,7 +1,9 @@
 
 ;;; Adapted from SCSH SRE tests by Christoph Hetz
 
-(use test)
+(cond-expand
+  (chicken-5 (import test))
+  (else (use test)))
 (load "irregex.scm")
 
 (define-syntax rx
