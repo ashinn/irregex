@@ -1,6 +1,6 @@
 ;;;; irregex.scm -- IrRegular Expressions
 ;;
-;; Copyright (c) 2005-2016 Alex Shinn.  All rights reserved.
+;; Copyright (c) 2005-2019 Alex Shinn.  All rights reserved.
 ;; BSD-style license: http://synthcode.com/license.txt
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -18,7 +18,7 @@
 ;;;; Notes
 ;;
 ;; This code should not require any porting - it should work out of
-;; the box in any R[45]RS Scheme implementation.  Slight modifications
+;; the box in any R[457]RS Scheme implementation.  Slight modifications
 ;; are needed for R6RS (a separate R6RS-compatible version is included
 ;; in the distribution as irregex-r6rs.scm).
 ;;
@@ -2966,8 +2966,7 @@
 ;; says "insert reordering algorithm here"), so this code was constructed
 ;; after some experimentation.  In other words, bugs be here.
 (define (find-reorder-commands-internal nfa closure dfa-states)
-  (let ((num-states (nfa-num-states nfa))
-        (num-tags (nfa-num-tags nfa))
+  (let ((num-tags (nfa-num-tags nfa))
         (closure-summary (mst-mappings-summary closure)))
     (let lp ((dfa-states dfa-states))
       (if (null? dfa-states)
