@@ -121,10 +121,10 @@
            (display "]" out))
           ((- & / ~)
            (cond
-            ((or (eq? #\~ (car x))
+            ((or (eqv? #\~ (car x))
                  (and (eq? '- (car x)) (pair? (cdr x)) (eq? 'any (cadr x))))
              (display "[^" out)
-             (display (cset->string (if (eq? #\~ (car x)) (cdr x) (cddr x))) out)
+             (display (cset->string (if (eqv? #\~ (car x)) (cdr x) (cddr x))) out)
              (display "]" out))
             (else
              (lp `(cset ,@(sre->cset x))))))
