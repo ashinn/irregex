@@ -8,7 +8,7 @@
   (display "</style>\n"))
 
 \flushright{\urlh{http://synthcode.com/}{Alex Shinn}}
-\flushright{\urlh{http://synthcode.com/scheme/irregex/irregex-0.9.6.tar.gz}{Download Version 0.9.6}}
+\flushright{\urlh{http://synthcode.com/scheme/irregex/irregex-0.9.7.tar.gz}{Download Version 0.9.7}}
 
 \eval(display "<br /><br />\n\n<blockquote>")
 
@@ -222,6 +222,8 @@ Examples:
 
   \q{(irregex-replace/all "[aeiou]" "hello world" "*") => "h*ll* w*rld"}
 
+  \q{(irregex-replace/all '(* "poo ") "poo poo platter" "*") => "**p*l*a*t*t*e*r"}
+
 \subsubsection*{(irregex-split <irx> <str> [<start> <end>])}
 \subsubsection*{(irregex-extract <irx> <str> [<start> <end>])}
 
@@ -229,6 +231,13 @@ Examples:
 by the pattern in \q{<irx>}.  \q{irregex-extract} does the opposite,
 returning a list of each instance of the pattern matched disregarding
 the substrings in between.
+
+Empty matches will result in subsequent single character string in
+\q{irregex-split}, or empty strings in \q{irregex-extract}.
+
+  \q{(irregex-split "[aeiou]*" "foobarbaz") => '("f" "b" "r" "b" "z")}
+
+  \q{(irregex-extract "[aeiou]*" "foobarbaz") => '("" "oo" "" "a" "" "" "a" "")}
 
 \subsubsection*{(irregex-fold <irx> <kons> <knil> <str> [<finish> <start> <end>])}
 
@@ -263,6 +272,11 @@ boundaries of the string on which you want to fold.
 To extract all instances of a match out of a string, you can use
 
   \q{(map irregex-match-substring (irregex-fold <irx> (lambda (i m s) (cons m s)) '() <str> (lambda (i s) (reverse s))))}
+
+Note if an empty match is found \q{<kons>} will be called on that
+empty string, and to avoid an infinite loop matching will resume at
+the next char.  It is up to the programmer to do something sensible
+with the skipped char in this case.
 
 \subsection{Extended SRE Syntax}
 

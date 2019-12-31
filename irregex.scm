@@ -30,6 +30,8 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; History
+;; 0.9.7: 2019/12/31 - more intuitive handling of empty matches in -fold,
+;;                     -replace and -split
 ;; 0.9.6: 2016/12/05 - fixed exponential memory use of + in compilation
 ;;                     of backtracking matcher (CVE-2016-9954).
 ;; 0.9.5: 2016/09/10 - fixed a bug in irregex-fold handling of bow
@@ -3939,9 +3941,9 @@
      irx
      (lambda (i m a)
        (cond
-        ;; ((= i (%irregex-match-end-index m 0))
-        ;;  ;; empty match, just include the char
-        ;;  (cons (substring str i (+ i 1)) a))
+        ((= i (%irregex-match-end-index m 0))
+         ;; empty match, include the skipped char to rejoin in finish
+         (cons (string-ref str i) a))
         ((= i (%irregex-match-start-index m 0))
          a)
         (else
@@ -3949,6 +3951,18 @@
      '()
      str
      (lambda (i a)
-       (reverse (if (= i end) a (cons (substring str i end) a))))
+       (let lp ((ls (if (= i end) a (cons (substring str i end) a)))
+                (res '())
+                (was-char? #f))
+         (cond
+          ((null? ls) res)
+          ((char? (car ls))
+           (lp (cdr ls)
+               (if (or was-char? (null? res))
+                   (cons (string (car ls)) res)
+                   (cons (string-append (string (car ls)) (car res))
+                         (cdr res)))
+               #t))
+          (else (lp (cdr ls) (cons (car ls) res) #f)))))
      start
      end)))
