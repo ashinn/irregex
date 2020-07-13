@@ -8,7 +8,7 @@
   (display "</style>\n"))
 
 \flushright{\urlh{http://synthcode.com/}{Alex Shinn}}
-\flushright{\urlh{http://synthcode.com/scheme/irregex/irregex-0.9.7.tar.gz}{Download Version 0.9.7}}
+\flushright{\urlh{http://synthcode.com/scheme/irregex/irregex-0.9.8.tar.gz}{Download Version 0.9.8}}
 
 \eval(display "<br /><br />\n\n<blockquote>")
 
@@ -812,7 +812,7 @@ possible.
 
 \section{License}
 
-Copyright (c) 2005-2015 Alex Shinn
+Copyright (c) 2005-2020 Alex Shinn
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

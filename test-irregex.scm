@@ -1,10 +1,50 @@
 #!/usr/local/bin/csi -script
 
 (cond-expand
-  (chicken-5 (import test matchable (chicken format) (chicken port) (chicken io) (chicken string)))
-  (else (use test extras utils matchable))) ; regexp pregexp
+ (chicken-5 (import test matchable (chicken format) (chicken port) (chicken io) (chicken string)))
+ (chicken (use test extras utils matchable))
+ (else
+  (import (scheme base) (scheme char) (scheme cxr)
+          (scheme file) (scheme load) (scheme write)
+          (srfi 130) (chibi match) (chibi test))))
 
 (load "irregex.scm")
+
+(define (cat . args)
+  (let ((out (open-output-string)))
+    (for-each (lambda (x) (display x out)) args)
+    (get-output-string out)))
+
+(define (warning . args)
+  (for-each (lambda (x) (display x (current-error-port))) args)
+  (newline (current-error-port)))
+
+(define (call-with-input-file file proc)
+  (let* ((in (open-input-file file))
+         (res (proc in)))
+    (close-input-port in)
+    res))
+
+(define (call-with-input-string str proc)
+  (let* ((in (open-input-string str))
+         (res (proc in)))
+    (close-input-port in)
+    res))
+
+(define (call-with-output-string proc)
+  (let ((out (open-output-string)))
+    (proc out)
+    (let ((res (get-output-string out)))
+      (close-output-port out)
+      res)))
+
+(define (port-for-each proc read . o)
+  (let ((in (if (pair? o) (car o) (current-input-port))))
+    (let lp ()
+      (let ((x (read in)))
+        (unless (eof-object? x)
+          (proc x)
+          (lp))))))
 
 (define (subst-matches matches subst)
   (define (submatch n)
@@ -45,7 +85,7 @@
 (define (test-re matcher line)
   (match (string-split line "\t" #t)
     ((pattern input result subst output)
-     (let ((name (sprintf "~A  ~A  ~A  ~A" pattern input result subst)))
+     (let ((name (cat pattern "  " input "  " result "  " subst)))
        (cond
         ((equal? "c" result)
          (test-error name (matcher pattern input)))
@@ -64,15 +104,16 @@
 
 (for-each
  (lambda (opts)
-   (test-group (sprintf "irregex - ~S" opts)
-     (with-input-from-file "re-tests.txt"
-       (lambda ()
+   (test-group (cat "irregex - " opts)
+     (call-with-input-file "re-tests.txt"
+       (lambda (in)
          (port-for-each
           (lambda (line)
             (test-re (lambda (pat str)
                        (irregex-search (apply irregex pat opts) str))
                      line))
-          read-line)))))
+          read-line
+          in)))))
  '((backtrack)
    (fast)
    ))
@@ -95,7 +136,7 @@
          (let lp ((src (cdr src1))
                   (res (list (substring (caar src1) i (caddar src1)))))
            (if (eq? src src2)
-               (string-intersperse
+               (string-join
                 (reverse (cons (substring (caar src2) (cadar src2) j) res))
                 "")
                (lp (cdr src)
@@ -151,15 +192,15 @@
 
 (for-each
  (lambda (opts)
-   (test-group (sprintf "irregex/chunked - ~S" opts)
-     (with-input-from-file "re-tests.txt"
-       (lambda ()
+   (test-group (cat "irregex/chunked - " opts)
+     (call-with-input-file "re-tests.txt"
+       (lambda (in)
          (port-for-each
           (lambda (line)
             (match (string-split line "\t" #t)
               ((pattern input result subst output)
                (let ((name
-                      (sprintf "~A  ~A  ~A  ~A" pattern input result subst)))
+                      (cat pattern "  " input "  " result "  " subst)))
                  (cond
                   ((equal? "c" result))
                   ((equal? "n" result)
@@ -184,7 +225,8 @@
               (else
                (warning "invalid regex test line" line)))
             )
-          read-line)))))
+          read-line
+          in)))))
  '((backtrack)
    (fast)
    ))
@@ -193,21 +235,23 @@
 ;; pregexp
 
 '(test-group "pregexp"
-   (with-input-from-file "re-tests.txt"
-     (lambda ()
+   (call-with-input-file "re-tests.txt"
+     (lambda (in)
        (port-for-each
         (lambda (line) (test-re pregexp-match line))
-        read-line))))
+        read-line
+        in))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; default regex (PCRE)
 
 '(test-group "regex"
-   (with-input-from-file "re-tests.txt"
-     (lambda ()
+   (call-with-input-file "re-tests.txt"
+     (lambda (in)
        (port-for-each
         (lambda (line) (test-re string-search line))
-        read-line))))
+        read-line
+        in))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -390,6 +434,9 @@
       (irregex-replace/all 'bol "Line 1\nLine 2" "*"))
   (test "**p*l*a*t*t*e*r"
       (irregex-replace/all '(* "poo ") "poo poo platter" "*"))
+  (test "x- y- z-"
+      (irregex-replace/all '(: (look-behind (or "x" "y" "z")) "a")
+                           "xa ya za"  "-"))
   (test '("foo" " " "foo" " " "b" "a" "r" " " "foo")
       (irregex-extract '(or (: bow "foo" eow) any) "foo foo bar foo"))
   (test '("f" "o" "o" "b" "a" "r" "b" "a" "z")
