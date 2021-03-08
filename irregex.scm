@@ -2266,8 +2266,8 @@
     (domain . (seq domain-atom (+ #\. domain-atom)))
     ;; XXXX now anything can be a top-level domain, but this is still handy
     (top-level-domain . (w/nocase (or "arpa" "com" "gov" "mil" "net" "org"
-                                      "aero" "biz" "coop" "info" "museum"
-                                      "name" "pro" (= 2 alpha))))
+                                      "edu" "aero" "biz" "coop" "info"
+				      "museum" "name" "pro" (= 2 alpha))))
     (domain/common . (seq (+ domain-atom #\.) top-level-domain))
     ;;(email-local-part . (seq (+ (or (~ #\") string))))
     (email-local-part . (+ (or alphanumeric #\_ #\- #\. #\+)))
@@ -2278,7 +2278,7 @@
                           (seq "%" hex-digit hex-digit)))
     (http-url . (w/nocase
                  "http" (? "s") "://"
-                 (or domain/common ipv4-address) ;; (seq "[" ipv6-address "]")
+                 (or domain ipv4-address) ;; (seq "[" ipv6-address "]")
                  (? ":" (+ numeric)) ;; port
                  ;; path
                  (? "/" (* (or url-char "/"))
