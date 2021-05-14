@@ -399,7 +399,7 @@
        (rope "bob@test.com and fred@example.com")
        (lambda (src i s) (reverse s))))
   (test '("poo poo ")
-      (irregex-fold '(* "poo ")
+      (irregex-fold '(+ "poo ")
                     (lambda (i m s)
                       (if (< i (irregex-match-end-index m 0))
                           (cons (irregex-match-substring m) s)
@@ -437,6 +437,9 @@
   (test "x- y- z-"
       (irregex-replace/all '(: (look-behind (or "x" "y" "z")) "a")
                            "xa ya za"  "-"))
+  (test "any gosh darned string"
+      (irregex-replace/all '(: bos (* whitespace))
+                           "any gosh darned string"  ""))
   (test '("foo" " " "foo" " " "b" "a" "r" " " "foo")
       (irregex-extract '(or (: bow "foo" eow) any) "foo foo bar foo"))
   (test '("f" "o" "o" "b" "a" "r" "b" "a" "z")

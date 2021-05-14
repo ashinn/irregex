@@ -1,6 +1,6 @@
 ;;;; irregex.scm -- IrRegular Expressions
 ;;
-;; Copyright (c) 2005-2020 Alex Shinn.  All rights reserved.
+;; Copyright (c) 2005-2021 Alex Shinn.  All rights reserved.
 ;; BSD-style license: http://synthcode.com/license.txt
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -30,6 +30,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; History
+;; 0.9.9: 2021/05/14 - more comprehensive fix for repeated empty matches
 ;; 0.9.8: 2020/07/13 - fix irregex-replace/all with look-behind patterns
 ;; 0.9.7: 2019/12/31 - more intuitive handling of empty matches in -fold,
 ;;                     -replace and -split
@@ -3803,9 +3804,9 @@
     (if (not (and (integer? end) (exact? end)))
         (error "irregex-fold: not an exact integer" end))
     (irregex-match-chunker-set! matches irregex-basic-string-chunker)
-    (let lp ((src init-src) (i start) (acc knil))
+    (let lp ((src init-src) (from start) (i start) (acc knil))
       (if (>= i end)
-          (finish i acc)
+          (finish from acc)
           (let ((m (irregex-search/matches
                     irx
                     irregex-basic-string-chunker
@@ -3814,18 +3815,18 @@
                     i
                     matches)))
             (if (not m)
-                (finish i acc)
+                (finish from acc)
                 (let ((j (%irregex-match-end-index m 0))
-                      (acc (kons i m acc)))
+                      (acc (kons from m acc)))
                   (irregex-reset-matches! matches)
                   (cond
                    ((flag-set? (irregex-flags irx) ~consumer?)
                     (finish j acc))
                    ((= j i)
                     ;; skip one char forward if we match the empty string
-                    (lp (list str (+ j 1) end) (+ j 1) acc))
+                    (lp (list str j end) j (+ j 1) acc))
                    (else
-                    (lp (list str j end) j acc))))))))))
+                    (lp (list str j end) j j acc))))))))))
 
 (define (irregex-fold irx kons . args)
   (if (not (procedure? kons)) (error "irregex-fold: not a procedure" kons))
@@ -3882,15 +3883,11 @@
   (irregex-fold/fast
    irx
    (lambda (i m acc)
-     (let* ((m-start (%irregex-match-start-index m 0))
-            (res (if (>= i m-start)
-                     (append (irregex-apply-match m o) acc)
-                     (append (irregex-apply-match m o)
-                             (cons (substring str i m-start) acc)))))
-       ;; include the skipped char on empty matches
-       (if (= i (%irregex-match-end-index m 0))
-           (cons (substring str i (+ i 1)) res)
-           res)))
+     (let ((m-start (%irregex-match-start-index m 0)))
+       (if (>= i m-start)
+           (append (irregex-apply-match m o) acc)
+           (append (irregex-apply-match m o)
+                   (cons (substring str i m-start) acc)))))
    '()
    str
    (lambda (i acc)
@@ -3951,9 +3948,6 @@
      irx
      (lambda (i m a)
        (cond
-        ((= i (%irregex-match-end-index m 0))
-         ;; empty match, include the skipped char to rejoin in finish
-         (cons (string-ref str i) a))
         ((= i (%irregex-match-start-index m 0))
          a)
         (else
