@@ -31,20 +31,8 @@ irregex-stalin.scm: irregex.scm regex-dna.scm read-string.scm error.scm
 irregex-jazz.scm: irregex.scm Makefile
 	perl -e 'BEGIN{$$/=""}' -e 'END{print "\n)\n"}' -ape "s/^(\\(define \\*allow-utf8-mode\\?\\* +#).(.*)/\\1f\\2/sm; s/^(\\(define irregex-tag .*)/(unit irregex.implementation.irregex\n\n(declare (proper-tail-calls) (block) (fixnum) (inline) (inlining-limit 700) (standard-bindings) (extended-bindings))\n\n\\1/sm; s/^\\(define \\(?integer-log .*/(define (integer-log n) (if (zero? n) n (- (integer-length n) 1)))\n\n/sm; s/^\\(define \\(bit-.*//sm; s/\\bbit-(not|ior|and)\\b/bitwise-\\1/gsm; s/\\bbit-shl\\b/fxarithmetic-shift-left/gsm; s/\\bbit-shr\\b/fxarithmetic-shift-right/gsm; if (/^\\(define .*multi-state/) {s/24/16/gsm; s/\\b(vector)\\b/u16\\1/gsm; s/\\(u16vector-ref mst 0\\)/(equal?-hash mst)/gsm; }" < $< > $@
 
-irregex-base.html: irregex.doc irregex.mistie irregex.css
-	csi -R mistie -e '(mistie-load "plain.mistie")' \
-	              -e '(mistie-load "scmhilit.mistie")' \
-	              -e '(define h-page-count 0)' \
-	              -e '(mistie-load "xref.mistie")' \
-	              -e '(mistie-load "timestamp.mistie")' \
-	              -e '(mistie-load "irregex.mistie")' \
-	              -e '(mistie-main "$<")' > $@
-
-irregex.html: irregex-base.html
-	grep '^<a name="SECTION_' $< |\
-	  perl -ape 's{<a name="(SECTION_(\d+)(\.\d+)?)"><h[12]>(?:[.\d]+)(?:\s|&nbsp;)*([^<>]*).*}{($$3?($$3==.1?($$sub=1,"<ol>\n"):""):(($$x=$$sub,$$sub=0,$$x>0)?"</ol>\n":""))."<li><a href=\"#$$1\">$$4</a>"}ge;' > irregex-toc.html
-	perl -ape 's{^<!--\s*TOC\s*-->}{"<ol>\n".`cat irregex-toc.html`."</ol>"}e' $< > $@
-	rm -f $< irregex-toc.html
+irregex.html: irregex.doc
+	chibi-doc --html $< > $@
 
 doc: irregex.html
 

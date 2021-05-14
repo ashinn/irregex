@@ -1,17 +1,10 @@
 
 \title{IrRegular Expressions}
 
-\eval
-(begin
-  (display "<style>\n")
-  (display (with-input-from-file "irregex.css" read-string))
-  (display "</style>\n"))
+\hyperlink[http://synthcode.com/]{Alex Shinn}
+\hyperlink[http://synthcode.com/scheme/irregex/irregex-0.9.9.tar.gz]{Download Version 0.9.9}
 
-\flushright{\urlh{http://synthcode.com/}{Alex Shinn}}
-\flushright{\urlh{http://synthcode.com/scheme/irregex/irregex-0.9.8.tar.gz}{Download Version 0.9.8}}
-
-\eval(display "<br /><br />\n\n<blockquote>")
-
+\centered{\italic{\pre{
 At this moment there was a loud ring at the bell, and I could
 hear Mrs. Hudson, our landlady, raising her voice in a wail of
 expostulation and dismay.
@@ -20,11 +13,7 @@ expostulation and dismay.
 they are really after us."
 
 "No, it's not quite so bad as that.  It is the unofficial
-force, -- the Baker Street irregulars."
-
-\eval(display "</blockquote>\n\n")
-
-\eval(display "<br /><br />\n\n")
+force, -- the Baker Street irregulars."}}}
 
 A fully portable and efficient R[4567]RS implementation of regular
 expressions, supporting both POSIX syntax with various (irregular)
@@ -36,33 +25,28 @@ and can thus be used in Unicode-aware Scheme implementations.
 Matching may be performed over standard Scheme strings, or over
 arbitrarily chunked streams of strings.
 
-\eval(display "<br /><br />\n\n")
-
-\section{Table of Contents}
-
-\eval(display "\n\n<!-- TOC -->\n\n")
-
-\eval(display "<br /><br />\n\n")
-
 \section{Installation}
 
 Just
 
-\q{
+\scheme{
   (load "irregex.scm")
 }
 
 in your favorite Scheme implementation and you're good to go!
 
-There is a global variable \q{*all-chars*} which is used for
+There is a global variable \scheme{*all-chars*} which is used for
 generating character set complements.  This defaults to the full
 Unicode range 0..#x10FFFF, but if your implementation can't handle
 characters that large you'll need to adjust it (a suitable ASCII
 definition is commented out in the source).
 
+If using an R7RS Schem you can use irregex.sld, or install
+\scheme{(chibi irregex)} from \url{http://snow-fort.org/}.
+
 If you are using an R6RS Scheme, you can instead
 
-\q{
+\scheme{
   (load "irregex-r6rs.scm")
 }
 
@@ -70,210 +54,216 @@ There are also a handful of utility procedures described below you may
 wish to use in irregex-utils.scm.
 
 If you are using Chicken Scheme IrRegex is built in as a core unit, so
-no need to install it.  To use it, you just need to \q{(use irregex)}.
+no need to install it.  To use it, you just need to \scheme{(use irregex)}.
 
 \section{Specification}
 
 \subsection{Procedures}
 
-\subsubsection*{(irregex <posix-string-or-sre> [<options> ...])}
-\subsubsection*{(string->irregex <posix-string> [<options> ...])}
-\subsubsection*{(sre->irregex <sre> [<options> ...])}
+\subsubsection{(irregex <posix-string-or-sre> [<options> ...])}
+\subsubsection{(string->irregex <posix-string> [<options> ...])}
+\subsubsection{(sre->irregex <sre> [<options> ...])}
 
 Compiles a regular expression from either a POSIX-style regular
 expression string (with most PCRE extensions) or an SCSH-style SRE.
-There is no \q{(rx ...)} syntax - just use normal Scheme lists, with
-\q{quasiquote} if you like.
+There is no \scheme{(rx ...)} syntax - just use normal Scheme lists, with
+\scheme{quasiquote} if you like.
 
 Technically a string by itself could be considered a valid (though
 rather silly) SRE, so if you want to just match a literal string you
-should use something like \q{(irregex `(: ,str))}, or use the explicit
-\q{(sre->irregex str)}.
+should use something like \scheme{(irregex `(: ,str))}, or use the explicit
+\scheme{(sre->irregex str)}.
 
 The options are a list of any of the following symbols:
 
-  \q{'i}, \q{'case-insensitive} - match case-insensitively
+  \scheme{'i}, \scheme{'case-insensitive} - match case-insensitively
 
-  \q{'m}, \q{'multi-line}       - treat string as multiple lines (effects ^ and $)
+  \scheme{'m}, \scheme{'multi-line}       - treat string as multiple lines (effects ^ and $)
 
-  \q{'s}, \q{'single-line}      - treat string as a single line (. can match newline)
+  \scheme{'s}, \scheme{'single-line}      - treat string as a single line (. can match newline)
 
-  \q{'utf8}             - utf8-mode (assumes strings are byte-strings)
+  \scheme{'utf8}             - utf8-mode (assumes strings are byte-strings)
 
-  \q{'fast}             - try to optimize the regular expression
+  \scheme{'fast}             - try to optimize the regular expression
 
-  \q{'small}            - try to compile a smaller regular expression
+  \scheme{'small}            - try to compile a smaller regular expression
 
-  \q{'backtrack}        - enforce a backtracking implementation
+  \scheme{'backtrack}        - enforce a backtracking implementation
 
-The \q{'fast} and \q{'small} options are heuristic guidelines and will
+The \scheme{'fast} and \scheme{'small} options are heuristic guidelines and will
 not necessarily make the compiled expression faster or smaller.
 
-\subsubsection*{(string->sre <str>)}
-\subsubsection*{(maybe-string->sre <obj>)}
+\subsubsection{(string->sre <str>)}
+\subsubsection{(maybe-string->sre <obj>)}
 
 For backwards compatibility, procedures to convert a POSIX string into
 an SRE.
 
-\q{maybe-string->sre} does the same thing, but only if the argument is
-a string, otherwise it assumes \q{<obj>} is an SRE and returns it
+\scheme{maybe-string->sre} does the same thing, but only if the argument is
+a string, otherwise it assumes \scheme{<obj>} is an SRE and returns it
 as-is.  This is useful when you want to provide an API that allows
-either a POSIX string or SRE (like \q{irregex} or \q{irregex-search}
+either a POSIX string or SRE (like \scheme{irregex} or \scheme{irregex-search}
 below) - it ensures the result is an SRE.
 
-\subsubsection*{(irregex? <obj>)}
+\subsubsection{(irregex? <obj>)}
 
-Returns \q{#t} iff the object is a regular expression.
+Returns \scheme{#t} iff the object is a regular expression.
 
-\subsubsection*{(irregex-search <irx> <str> [<start> <end>])}
+\subsubsection{(irregex-search <irx> <str> [<start> <end>])}
 
 Searches for any instances of the pattern <irx> (a POSIX string, SRE
 sexp, or pre-compiled regular expression) in <str>, optionally between
 the given range.  If a match is found, returns a match object,
-otherwise returns \q{#f}.
+otherwise returns \scheme{#f}.
 
 Match objects can be used to query the original range of the string or
-its submatches using the \q{irregex-match-*} procedures below.
+its submatches using the \scheme{irregex-match-*} procedures below.
 
 Examples:
 
-  \q{(irregex-search "foobar" "abcFOOBARdef") => #f}
+  \scheme{(irregex-search "foobar" "abcFOOBARdef") => #f}
 
-  \q{(irregex-search (irregex "foobar" 'i) "abcFOOBARdef") => #<match>}
+  \scheme{(irregex-search (irregex "foobar" 'i) "abcFOOBARdef") => #<match>}
 
-  \q{(irregex-search '(w/nocase "foobar") "abcFOOBARdef") => #<match>}
+  \scheme{(irregex-search '(w/nocase "foobar") "abcFOOBARdef") => #<match>}
 
 Note, the actual match result is represented by a vector in the
 default implementation.  Throughout this document, we'll just write
-\q{<match>} to show that a successful match was returned when the
+\scheme{<match>} to show that a successful match was returned when the
 details are not important.
 
 Matching follows the POSIX leftmost, longest semantics, when
 searching.  That is, of all possible matches in the string,
-\q{irregex-search} will return the match at the first position
+\scheme{irregex-search} will return the match at the first position
 (leftmost).  If multiple matches are possible from that same first
 position, the longest match is returned.
 
-\subsubsection*{(irregex-match <irx> <str> [<start> <end>])}
+\subsubsection{(irregex-match <irx> <str> [<start> <end>])}
 
-Like \q{irregex-search}, but performs an anchored match against the
+Like \scheme{irregex-search}, but performs an anchored match against the
 beginning and end of the substring specified by <start> and <end>,
 without searching.
 
 Examples:
 
-  \q{(irregex-match '(w/nocase "foobar") "abcFOOBARdef") => #f}
+  \scheme{(irregex-match '(w/nocase "foobar") "abcFOOBARdef") => #f}
 
-  \q{(irregex-match '(w/nocase "foobar") "FOOBAR") => #<match>}
+  \scheme{(irregex-match '(w/nocase "foobar") "FOOBAR") => #<match>}
 
-\subsubsection*{(irregex-match-data? <obj>)}
+\subsubsection{(irregex-match-data? <obj>)}
 
-Returns \q{#t} iff the object is a successful match result from
-\q{irregex-search} or \q{irregex-match}.
+Returns \scheme{#t} iff the object is a successful match result from
+\scheme{irregex-search} or \scheme{irregex-match}.
 
-\subsubsection*{(irregex-num-submatches <irx>)}
-\subsubsection*{(irregex-match-num-submatches <match>)}
+\subsubsection{(irregex-num-submatches <irx>)}
+\subsubsection{(irregex-match-num-submatches <match>)}
 
 Returns the number of numbered submatches that are defined in the
 irregex or match object.
 
-\subsubsection*{(irregex-names <irx>)}
-\subsubsection*{(irregex-match-names <match>)}
+\subsubsection{(irregex-names <irx>)}
+\subsubsection{(irregex-match-names <match>)}
 
 Returns an association list of named submatches that are defined in
-the irregex or match object.  The \q{car} of each item in this list is
-the name of a submatch, the \q{cdr} of each item is the numerical
+the irregex or match object.  The \scheme{car} of each item in this list is
+the name of a submatch, the \scheme{cdr} of each item is the numerical
 submatch corresponding to this name.  If a named submatch occurs
 multiple times in the irregex, it will also occur multiple times in
 this list.
 
-\subsubsection*{(irregex-match-valid-index? <match> <index-or-name>)}
+\subsubsection{(irregex-match-valid-index? <match> <index-or-name>)}
 
-Returns \q{#t} iff the \q{index-or-name} named submatch or index is
-defined in the \q{match} object.
+Returns \scheme{#t} iff the \scheme{index-or-name} named submatch or index is
+defined in the \scheme{match} object.
 
-\subsubsection*{(irregex-match-substring <match> [<index-or-name>])}
-\subsubsection*{(irregex-match-start-index <match> [<index-or-name>])}
-\subsubsection*{(irregex-match-end-index <match> [<index-or-name>])}
+\subsubsection{(irregex-match-substring <match> [<index-or-name>])}
+\subsubsection{(irregex-match-start-index <match> [<index-or-name>])}
+\subsubsection{(irregex-match-end-index <match> [<index-or-name>])}
 
 Fetches the matched substring (or its start or end offset) at the
 given submatch index, or named submatch.  The entire match is index 0,
 the first 1, etc.  The default is index 0.
 
-\subsubsection*{(irregex-match-subchunk <match> [<index-or-name>])}
+\subsubsection{(irregex-match-subchunk <match> [<index-or-name>])}
 
 Generates a chunked data-type for the given match item, of the same
 type as the underlying chunk type (see Chunked String Matching below).
 This is only available if the chunk type specifies the get-subchunk
 API, otherwise an error is raised.
 
-\subsubsection*{(irregex-replace <irx> <str> [<replacements> ...])}
-\subsubsection*{(irregex-replace/all <irx> <str> [<replacements> ...])}
+\subsubsection{(irregex-replace <irx> <str> [<replacements> ...])}
+\subsubsection{(irregex-replace/all <irx> <str> [<replacements> ...])}
 
 Matches a pattern in a string, and replaces it with a (possibly empty)
-list of substitutions.  Each \q{<replacement>} can be either a string
+list of substitutions.  Each \scheme{<replacement>} can be either a string
 literal, a numeric index, a symbol (as a named submatch), or a
 procedure which takes one argument (the match object) and returns a
 string.
 
 Examples:
 
-  \q{(irregex-replace "[aeiou]" "hello world" "*") => "h*llo world"}
+  \scheme{(irregex-replace "[aeiou]" "hello world" "*") => "h*llo world"}
 
-  \q{(irregex-replace/all "[aeiou]" "hello world" "*") => "h*ll* w*rld"}
+  \scheme{(irregex-replace/all "[aeiou]" "hello world" "*") => "h*ll* w*rld"}
 
-  \q{(irregex-replace/all '(* "poo ") "poo poo platter" "*") => "**p*l*a*t*t*e*r"}
+  \scheme{(irregex-replace/all '(* "poo ") "poo poo platter" "*") => "**p*l*a*t*t*e*r"}
 
-\subsubsection*{(irregex-split <irx> <str> [<start> <end>])}
-\subsubsection*{(irregex-extract <irx> <str> [<start> <end>])}
+\subsubsection{(irregex-split <irx> <str> [<start> <end>])}
+\subsubsection{(irregex-extract <irx> <str> [<start> <end>])}
 
-\q{irregex-split} splits the string \q{<str>} into substrings divided
-by the pattern in \q{<irx>}.  \q{irregex-extract} does the opposite,
+\scheme{irregex-split} splits the string \scheme{<str>} into substrings divided
+by the pattern in \scheme{<irx>}.  \scheme{irregex-extract} does the opposite,
 returning a list of each instance of the pattern matched disregarding
 the substrings in between.
 
 Empty matches will result in subsequent single character string in
-\q{irregex-split}, or empty strings in \q{irregex-extract}.
+\scheme{irregex-split}, or empty strings in \scheme{irregex-extract}.
 
-  \q{(irregex-split "[aeiou]*" "foobarbaz") => '("f" "b" "r" "b" "z")}
+  \scheme{(irregex-split "[aeiou]*" "foobarbaz") => '("f" "b" "r" "b" "z")}
 
-  \q{(irregex-extract "[aeiou]*" "foobarbaz") => '("" "oo" "" "a" "" "" "a" "")}
+  \scheme{(irregex-extract "[aeiou]*" "foobarbaz") => '("" "oo" "" "a" "" "" "a" "")}
 
-\subsubsection*{(irregex-fold <irx> <kons> <knil> <str> [<finish> <start> <end>])}
+\subsubsection{(irregex-fold <irx> <kons> <knil> <str> [<finish> <start> <end>])}
 
 This performs a fold operation over every non-overlapping place
-\q{<irx>} occurs in the string \q{str}.
+\scheme{<irx>} occurs in the string \scheme{str}.
 
-The \q{<kons>} procedure takes the following signature:
+The \scheme{<kons>} procedure takes the following signature:
 
-  \q{(<kons> <from-index> <match> <seed>)}
+  \scheme{(<kons> <from-index> <match> <seed>)}
 
-where \q{<from-index>} is the index from where we started searching
-(initially \q{<start>} and thereafter the end index of the last
-match), \q{<match>} is the resulting match-data object, and \q{<seed>}
-is the accumulated fold result starting with \q{<knil>}.
+where \scheme{<from-index>} is the index from where we started searching
+(initially \scheme{<start>} and thereafter the end index of the last
+match), \scheme{<match>} is the resulting match-data object, and \scheme{<seed>}
+is the accumulated fold result starting with \scheme{<knil>}.
 
-The rationale for providing the \q{<from-index>} (which is not
-provided in the SCSH \q{regexp-fold} utility), is because this
+The rationale for providing the \scheme{<from-index>} (which is not
+provided in the SCSH \scheme{regexp-fold} utility), is because this
 information is useful (e.g. for extracting the unmatched portion of
 the string before the current match, as needed in
-\q{irregex-replace}), and not otherwise directly accessible.
+\scheme{irregex-replace}), and not otherwise directly accessible.
 
-The optional \q{<finish>} takes two arguments:
+The optional \scheme{<finish>} takes two arguments:
 
-  \q{(<finish> <from-index> <seed>)}
+  \scheme{(<finish> <from-index> <seed>)}
 
 which similarly allows you to pick up the unmatched tail of the string,
-and defaults to just returning the \q{<seed>}.
+and defaults to just returning the \scheme{<seed>}.
 
-\q{<start>} and \q{<end>} are numeric indices letting you specify the
+\scheme{<start>} and \scheme{<end>} are numeric indices letting you specify the
 boundaries of the string on which you want to fold.
 
 To extract all instances of a match out of a string, you can use
 
-  \q{(map irregex-match-substring (irregex-fold <irx> (lambda (i m s) (cons m s)) '() <str> (lambda (i s) (reverse s))))}
+\schemeblock{
+(map irregex-match-substring
+     (irregex-fold <irx>
+                   (lambda (i m s) (cons m s))
+                   '()
+                   <str>
+                   (lambda (i s) (reverse s))))}
 
-Note if an empty match is found \q{<kons>} will be called on that
+Note if an empty match is found \scheme{<kons>} will be called on that
 empty string, and to avoid an infinite loop matching will resume at
 the next char.  It is up to the programmer to do something sensible
 with the skipped char in this case.
@@ -288,7 +278,7 @@ libraries such as PCRE.
 The following table summarizes the SRE syntax, with detailed
 explanations following.
 
-\q{
+\pre{\scheme{
   ;; basic patterns
   <string>                          ; literal string
   (seq <sre> ...)                   ; sequence
@@ -357,30 +347,30 @@ explanations following.
 
   ;; backwards compatibility
   (posix-string <string>)           ; embed a POSIX string literal
-}
+}}
 
 \subsubsection{Basic SRE Patterns}
 
 The simplest SRE is a literal string, which matches that string
 exactly.
 
-  \q{(irregex-search "needle" "hayneedlehay") => #<match>}
+  \scheme{(irregex-search "needle" "hayneedlehay") => #<match>}
 
 By default the match is case-sensitive, though you can control this
 either with the compiler flags or local overrides:
 
-  \q{(irregex-search "needle" "haynEEdlehay") => #f}
+  \scheme{(irregex-search "needle" "haynEEdlehay") => #f}
 
-  \q{(irregex-search (irregex "needle" 'i) "haynEEdlehay") => #<match>}
+  \scheme{(irregex-search (irregex "needle" 'i) "haynEEdlehay") => #<match>}
 
-  \q{(irregex-search '(w/nocase "needle") "haynEEdlehay") => #<match>}
+  \scheme{(irregex-search '(w/nocase "needle") "haynEEdlehay") => #<match>}
 
-You can use \q{w/case} to switch back to case-sensitivity inside a
-\q{w/nocase} or when the SRE was compiled with \q{'i}:
+You can use \scheme{w/case} to switch back to case-sensitivity inside a
+\scheme{w/nocase} or when the SRE was compiled with \scheme{'i}:
 
-  \q{(irregex-search '(w/nocase "SMALL" (w/case "BIG")) "smallBIGsmall") => #<match>}
+  \scheme{(irregex-search '(w/nocase "SMALL" (w/case "BIG")) "smallBIGsmall") => #<match>}
 
-  \q{(irregex-search '(w/nocase "small" (w/case "big")) "smallBIGsmall") => #f}
+  \scheme{(irregex-search '(w/nocase "small" (w/case "big")) "smallBIGsmall") => #f}
 
 \b{Important:} characters outside the ASCII range are only matched
 case insensitively if the host Scheme system natively supports UTF8 in
@@ -388,75 +378,75 @@ strings.
 
 Of course, literal strings by themselves aren't very interesting
 regular expressions, so we want to be able to compose them.  The most
-basic way to do this is with the \q{seq} operator (or its abbreviation
-\q{:}), which matches one or more patterns consecutively:
+basic way to do this is with the \scheme{seq} operator (or its abbreviation
+\scheme{:}), which matches one or more patterns consecutively:
 
-  \q{(irregex-search '(: "one" space "two" space "three") "one two three") => #<match>}
+  \scheme{(irregex-search '(: "one" space "two" space "three") "one two three") => #<match>}
 
-As you may have noticed above, the \q{w/case} and \q{w/nocase}
+As you may have noticed above, the \scheme{w/case} and \scheme{w/nocase}
 operators allowed multiple SREs in a sequence - other operators that
 take any number of arguments (e.g. the repetition operators below)
 allow such implicit sequences.
 
-To match any one of a set of patterns use the \q{or} alternation
+To match any one of a set of patterns use the \scheme{or} alternation
 operator:
 
-  \q{(irregex-search '(or "eeney" "meeney" "miney") "meeney") => #<match>}
+  \scheme{(irregex-search '(or "eeney" "meeney" "miney") "meeney") => #<match>}
 
-  \q{(irregex-search '(or "eeney" "meeney" "miney") "moe") => #f}
+  \scheme{(irregex-search '(or "eeney" "meeney" "miney") "moe") => #f}
 
 \subsubsection{SRE Repetition Patterns}
 
 There are also several ways to control the number of times a pattern
-is matched.  The simplest of these is \q{?} which just optionally
+is matched.  The simplest of these is \scheme{?} which just optionally
 matches the pattern:
 
-  \q{(irregex-search '(: "match" (? "es") "!") "matches!") => #<match>}
+  \scheme{(irregex-search '(: "match" (? "es") "!") "matches!") => #<match>}
 
-  \q{(irregex-search '(: "match" (? "es") "!") "match!") => #<match>}
+  \scheme{(irregex-search '(: "match" (? "es") "!") "match!") => #<match>}
 
-  \q{(irregex-search '(: "match" (? "es") "!") "matche!") => #f}
+  \scheme{(irregex-search '(: "match" (? "es") "!") "matche!") => #f}
 
-To optionally match any number of times, use \q{*}, the Kleene star:
+To optionally match any number of times, use \scheme{*}, the Kleene star:
 
-  \q{(irregex-search '(: "<" (* (~ #\>)) ">") "<html>") => #<match>}
+  \scheme{(irregex-search '(: "<" (* (~ #\\>)) ">") "<html>") => #<match>}
 
-  \q{(irregex-search '(: "<" (* (~ #\>)) ">") "<>") => #<match>}
+  \scheme{(irregex-search '(: "<" (* (~ #\\>)) ">") "<>") => #<match>}
 
-  \q{(irregex-search '(: "<" (* (~ #\>)) ">") "<html") => #f}
+  \scheme{(irregex-search '(: "<" (* (~ #\\>)) ">") "<html") => #f}
 
 Often you want to match any number of times, but at least one time is
-required, and for that you use \q{+}:
+required, and for that you use \scheme{+}:
 
-  \q{(irregex-search '(: "<" (+ (~ #\>)) ">") "<html>") => #<match>}
+  \scheme{(irregex-search '(: "<" (+ (~ #\\>)) ">") "<html>") => #<match>}
 
-  \q{(irregex-search '(: "<" (+ (~ #\>)) ">") "<a>") => #<match>}
+  \scheme{(irregex-search '(: "<" (+ (~ #\\>)) ">") "<a>") => #<match>}
 
-  \q{(irregex-search '(: "<" (+ (~ #\>)) ">") "<>") => #f}
+  \scheme{(irregex-search '(: "<" (+ (~ #\\>)) ">") "<>") => #f}
 
-More generally, to match at least a given number of times, use \q{>=}:
+More generally, to match at least a given number of times, use \scheme{>=}:
 
-  \q{(irregex-search '(: "<" (>= 3 (~ #\>)) ">") "<table>") => #<match>}
+  \scheme{(irregex-search '(: "<" (>= 3 (~ #\\>)) ">") "<table>") => #<match>}
 
-  \q{(irregex-search '(: "<" (>= 3 (~ #\>)) ">") "<pre>") => #<match>}
+  \scheme{(irregex-search '(: "<" (>= 3 (~ #\\>)) ">") "<pre>") => #<match>}
 
-  \q{(irregex-search '(: "<" (>= 3 (~ #\>)) ">") "<tr>") => #f}
+  \scheme{(irregex-search '(: "<" (>= 3 (~ #\\>)) ">") "<tr>") => #f}
 
-To match a specific number of times exactly, use \q{=}:
+To match a specific number of times exactly, use \scheme{=}:
 
-  \q{(irregex-search '(: "<" (= 4 (~ #\>)) ">") "<html>") => #<match>}
+  \scheme{(irregex-search '(: "<" (= 4 (~ #\\>)) ">") "<html>") => #<match>}
 
-  \q{(irregex-search '(: "<" (= 4 (~ #\>)) ">") "<table>") => #f}
+  \scheme{(irregex-search '(: "<" (= 4 (~ #\\>)) ">") "<table>") => #f}
 
-And finally, the most general form is \q{**} which specifies a range
+And finally, the most general form is \scheme{**} which specifies a range
 of times to match.  All of the earlier forms are special cases of this.
 
-  \q{(irregex-search '(: (= 3 (** 1 3 numeric) ".") (** 1 3 numeric)) "192.168.1.10") => #<match>}
+  \scheme{(irregex-search '(: (= 3 (** 1 3 numeric) ".") (** 1 3 numeric)) "192.168.1.10") => #<match>}
 
-  \q{(irregex-search '(: (= 3 (** 1 3 numeric) ".") (** 1 3 numeric)) "192.0168.1.10") => #f}
+  \scheme{(irregex-search '(: (= 3 (** 1 3 numeric) ".") (** 1 3 numeric)) "192.0168.1.10") => #f}
 
 There are also so-called "non-greedy" variants of these repetition
-operators, by convention suffixed with an additional \q{?}.  Since the
+operators, by convention suffixed with an additional \scheme{?}.  Since the
 normal repetition patterns can match any of the allotted repetition
 range, these operators will match a string if and only if the normal
 versions matched.  However, when the endpoints of which submatch
@@ -464,9 +454,9 @@ matched where are taken into account (specifically, all matches when
 using irregex-search since the endpoints of the match itself matter),
 the use of a non-greedy repetition can change the result.
 
-So, whereas \q{?} can be thought to mean "match or don't match,"
-\q{??} means "don't match or match."  \q{*} typically consumes as much
-as possible, but \q{*?} tries first to match zero times, and only
+So, whereas \scheme{?} can be thought to mean "match or don't match,"
+\scheme{??} means "don't match or match."  \scheme{*} typically consumes as much
+as possible, but \scheme{*?} tries first to match zero times, and only
 consumes one at a time if that fails.  If you have a greedy operator
 followed by a non-greedy operator in the same pattern, they can
 produce surprisins results as they compete to make the match longer or
@@ -480,7 +470,7 @@ efficient execution.
 \subsubsection{SRE Character Sets}
 
 Perhaps more common than matching specific strings is matching any of
-a set of characters.  You can use the \q{or} alternation pattern on a
+a set of characters.  You can use the \scheme{or} alternation pattern on a
 list of single-character strings to simulate a character set, but this
 is too clumsy for everyday use so SRE syntax allows a number of
 shortcuts.
@@ -490,35 +480,35 @@ character class.  More conveniently, a list holding a single element
 which is a string refers to the character set composed of every
 character in the string.
 
-  \q{(irregex-match '(* #\-) "---") => #<match>}
+  \scheme{(irregex-match '(* #\\-) "---") => #<match>}
 
-  \q{(irregex-match '(* #\-) "-_-") => #f}
+  \scheme{(irregex-match '(* #\\-) "-_-") => #f}
 
-  \q{(irregex-match '(* ("aeiou")) "oui") => #<match>}
+  \scheme{(irregex-match '(* ("aeiou")) "oui") => #<match>}
 
-  \q{(irregex-match '(* ("aeiou")) "ouais") => #f}
+  \scheme{(irregex-match '(* ("aeiou")) "ouais") => #f}
 
-Ranges are introduced with the \q{/} operator.  Any strings or
-characters in the \q{/} are flattened and then taken in pairs to
+Ranges are introduced with the \scheme{/} operator.  Any strings or
+characters in the \scheme{/} are flattened and then taken in pairs to
 represent the start and end points, inclusive, of character ranges.
 
-  \q{(irregex-match '(* (/ "AZ09")) "R2D2") => #<match>}
+  \scheme{(irregex-match '(* (/ "AZ09")) "R2D2") => #<match>}
 
-  \q{(irregex-match '(* (/ "AZ09")) "C-3PO") => #f}
+  \scheme{(irregex-match '(* (/ "AZ09")) "C-3PO") => #f}
 
-In addition, a number of set algebra operations are provided.  \q{or},
+In addition, a number of set algebra operations are provided.  \scheme{or},
 of course, has the same meaning, but when all the options are
 character sets it can be thought of as the set union operator.  This
-is further extended by the \q{&} set intersection, \q{-} set
-difference, and \q{~} set complement operators.
+is further extended by the \scheme{&} set intersection, \scheme{-} set
+difference, and \scheme{~} set complement operators.
 
-  \q{(irregex-match '(* (& (/ "az") (~ ("aeiou")))) "xyzzy") => #<match>}
+  \scheme{(irregex-match '(* (& (/ "az") (~ ("aeiou")))) "xyzzy") => #<match>}
 
-  \q{(irregex-match '(* (& (/ "az") (~ ("aeiou")))) "vowels") => #f}
+  \scheme{(irregex-match '(* (& (/ "az") (~ ("aeiou")))) "vowels") => #f}
 
-  \q{(irregex-match '(* (- (/ "az") ("aeiou"))) "xyzzy") => #<match>}
+  \scheme{(irregex-match '(* (- (/ "az") ("aeiou"))) "xyzzy") => #<match>}
 
-  \q{(irregex-match '(* (- (/ "az") ("aeiou"))) "vowels") => #f}
+  \scheme{(irregex-match '(* (- (/ "az") ("aeiou"))) "vowels") => #f}
 
 \subsubsection{SRE Assertion Patterns}
 
@@ -528,31 +518,31 @@ pattern.  The most common cases are specifically anchoring some
 pattern to the beginning or end of a word or line or even the whole
 string.  For example, to match on the end of a word:
 
-  \q{(irregex-search '(: "foo" eow) "foo") => #<match>}
+  \scheme{(irregex-search '(: "foo" eow) "foo") => #<match>}
 
-  \q{(irregex-search '(: "foo" eow) "foo!") => #<match>}
+  \scheme{(irregex-search '(: "foo" eow) "foo!") => #<match>}
 
-  \q{(irregex-search '(: "foo" eow) "foof") => #f}
+  \scheme{(irregex-search '(: "foo" eow) "foof") => #f}
 
-The \q{bow}, \q{bol}, \q{eol}, \q{bos} and \q{eos} work similarly.
-\q{nwb} asserts that you are not in a word-boundary - if replaced for
-\q{eow} in the above examples it would reverse all the results.
+The \scheme{bow}, \scheme{bol}, \scheme{eol}, \scheme{bos} and \scheme{eos} work similarly.
+\scheme{nwb} asserts that you are not in a word-boundary - if replaced for
+\scheme{eow} in the above examples it would reverse all the results.
 
-There is no \q{wb}, since you tend to know from context whether it
+There is no \scheme{wb}, since you tend to know from context whether it
 would be the beginning or end of a word, but if you need it you can
-always use \q{(or bow eow)}.
+always use \scheme{(or bow eow)}.
 
 Somewhat more generally, Perl introduced positive and negative
 look-ahead and look-behind patterns.  Perl look-behind patterns are
 limited to a fixed length, however the IrRegex versions have no such
 limit.
 
-  \q{(irregex-search '(: "regular" (look-ahead " expression"))
+  \scheme{(irregex-search '(: "regular" (look-ahead " expression"))
                      "regular expression")
       => #<match>}
 
-The most general case, of course, would be an \q{and} pattern to
-complement the \q{or} pattern - all the patterns must match or the
+The most general case, of course, would be an \scheme{and} pattern to
+complement the \scheme{or} pattern - all the patterns must match or the
 whole pattern fails.  This may be provided in a future release,
 although it (and look-ahead and look-behind assertions) are unlikely
 to be compiled efficiently.
@@ -572,7 +562,7 @@ There are three general usages for regexps:
 \item*{extraction} - given a string already known to be valid, extract certain fields from it as submatches
 
 In some cases, but not always, these will overlap.  When they are
-different, \q{irregex-search} will naturally always want the searching
+different, \scheme{irregex-search} will naturally always want the searching
 version, so IrRegex provides that version.
 
 As an example where these might be different, consider a URL.  If you
@@ -593,7 +583,7 @@ quite common in Japan.
 
 The current patterns provided are:
 
-\q{
+\pre{\scheme{
   newline                        ; general newline pattern (crlf, cr, lf)
   integer                        ; an integer
   real                           ; a real number (including scientific)
@@ -602,9 +592,10 @@ The current patterns provided are:
   ipv4-address                   ; a numeric decimal ipv4 address
   ipv6-address                   ; a numeric hexadecimal ipv6 address
   domain                         ; a domain name
+  domain/common                  ; a domain ending in a common TLD like .com
   email                          ; an email address
   http-url                       ; a URL beginning with https?://
-}
+}}
 
 Because of these issues the exact definitions of these patterns are
 subject to be changed, but will be documented clearly when they are
@@ -616,16 +607,16 @@ parser.
 
 Since the PCRE syntax is so overwhelming complex, it's easier to just
 list what we *don't* support for now.  Refer to the
-\urlh{http://pcre.org/pcre.txt}{PCRE documentation} for details.  You
+\hyperlink[http://pcre.org/pcre.txt]{PCRE documentation} for details.  You
 should be using the SRE syntax anyway!
 
-Unicode character classes (\P) are not supported, but will be
-in an upcoming release.  \C named characters are not supported.
+Unicode character classes (\\P) are not supported, but will be
+in an upcoming release.  \\C named characters are not supported.
 
 Callbacks, subroutine patterns and recursive patterns are not
 supported.  (*FOO) patterns are not supported and may never be.
 
-\G and \K are not supported.
+\\G and \\K are not supported.
 
 Octal character escapes are not supported because they are ambiguous
 with back-references - just use hex character escapes.
@@ -633,14 +624,14 @@ with back-references - just use hex character escapes.
 Other than that everything should work, including named submatches,
 zero-width assertions, conditional patterns, etc.
 
-In addition, \< and \> act as beginning-of-word and end-of-word marks,
+In addition, \\< and \\> act as beginning-of-word and end-of-word marks,
 respectively, as in Emacs regular expressions.
 
 Also, two escapes are provided to embed SRE patterns inside PCRE
-strings, "\'<sre>" and "(*'<sre>)".  For example, to match a
+strings, "\\'<sre>" and "(*'<sre>)".  For example, to match a
 comma-delimited list of integers you could use
 
-  "\\'integer(,\\'integer)*"
+  "\\\\'integer(,\\\\'integer)*"
 
 and to match a URL in angle brackets you could use
 
@@ -653,7 +644,7 @@ the SRE symbol.
 The following chart gives a quick reference from PCRE form to the SRE
 equivalent:
 
-\q{
+\schemeblock{
   ;; basic syntax
   "^"                     ;; bos (or eos inside (?m: ...))
   "$"                     ;; eos (or eos inside (?m: ...))
@@ -703,24 +694,24 @@ text-buffer opened onto a 500MB file.
 IrRegex provides a chunked string API specifically for this purpose.
 You define a chunking API with
 
-\subsubsection*{(make-irregex-chunker <get-next> <get-string> [<get-start> <get-end> <get-substring> <get-subchunk>])}
+\subsubsection{(make-irregex-chunker <get-next> <get-string> [<get-start> <get-end> <get-substring> <get-subchunk>])}
 
 where 
 
-  \q{(<get-next> chunk) => } returns the next chunk, or \q{#f} if there are no more chunks
+  \scheme{(<get-next> chunk) => } returns the next chunk, or \scheme{#f} if there are no more chunks
 
-  \q{(<get-string> chunk) => } a string source for the chunk
+  \scheme{(<get-string> chunk) => } a string source for the chunk
 
-  \q{(<get-start> chunk) => } the start index of the result of \q{<get-string>} (defaults to always 0)
+  \scheme{(<get-start> chunk) => } the start index of the result of \scheme{<get-string>} (defaults to always 0)
 
-  \q{(<get-end> chunk) => } the end (exclusive) of the string (defaults to \q{string-length} of the source string)
+  \scheme{(<get-end> chunk) => } the end (exclusive) of the string (defaults to \scheme{string-length} of the source string)
 
-  \q{(<get-substring> cnk1 i cnk2 j) => } a substring for the range between the chunk \q{cnk1} starting at index \q{i} and ending at \q{cnk2} at index \q{j}
+  \scheme{(<get-substring> cnk1 i cnk2 j) => } a substring for the range between the chunk \scheme{cnk1} starting at index \scheme{i} and ending at \scheme{cnk2} at index \scheme{j}
 
-  \q{(<get-subchunk> cnk1 i cnk2 j) => } as above but returns a new chunked data type instead of a string (optional)
+  \scheme{(<get-subchunk> cnk1 i cnk2 j) => } as above but returns a new chunked data type instead of a string (optional)
 
-There are two important constraints on the \q{<get-next>} procedure.
-It must return an \q{eq?} identical object when called multiple times
+There are two important constraints on the \scheme{<get-next>} procedure.
+It must return an \scheme{eq?} identical object when called multiple times
 on the same chunk, and it must not return a chunk with an empty string
 (start == end).  This second constraint is for performance reasons -
 we push the work of possibly filtering empty chunks to the chunker
@@ -728,15 +719,15 @@ since there are many chunk types for which empty strings aren't
 possible, and this work is thus not needed.  Note that the initial
 chunk passed to match on is allowed to be empty.
 
-\q{<get-substring>} is provided for possible performance improvements
-- without it a default is used.  \q{<get-subchunk>} is optional -
-without it you may not use \q{irregex-match-subchunk} described above.
+\scheme{<get-substring>} is provided for possible performance improvements
+- without it a default is used.  \scheme{<get-subchunk>} is optional -
+without it you may not use \scheme{irregex-match-subchunk} described above.
 
 You can then match chunks of these types with the following
 procedures:
 
-\subsubsection*{(irregex-search/chunked <irx> <chunker> <chunk> [<start>])}
-\subsubsection*{(irregex-match/chunked <irx> <chunker> <chunk> [<start>])}
+\subsubsection{(irregex-search/chunked <irx> <chunker> <chunk> [<start>])}
+\subsubsection{(irregex-match/chunked <irx> <chunker> <chunk> [<start>])}
 
 These return normal match-data objects.
 
@@ -744,7 +735,7 @@ Example:
 
 To match against a simple, flat list of strings use:
 
-\q{
+\schemeblock{
   (define (rope->string rope1 start rope2 end)
     (if (eq? rope1 rope2)
         (substring (car rope1) start end)
@@ -768,32 +759,32 @@ To match against a simple, flat list of strings use:
 Here we are just using the default start, end and substring behaviors,
 so the above chunker could simply be defined as:
 
-\q{
+\schemeblock{
   (define rope-chunker
     (make-irregex-chunker (lambda (x) (and (pair? (cdr x)) (cdr x))) car))
 }
 
-\subsubsection*{(irregex-fold/chunked <irx> <kons> <knil> <chunker> <chunk> [<finish> [<start-index>]])}
+\subsubsection{(irregex-fold/chunked <irx> <kons> <knil> <chunker> <chunk> [<finish> [<start-index>]])}
 
-Chunked version of \q{irregex-fold}.
+Chunked version of \scheme{irregex-fold}.
 
 \subsection{Utilities}
 
 The following procedures are available in irregex-utils.scm.
 
-\subsubsection*{(irregex-quote <str>)}
+\subsubsection{(irregex-quote <str>)}
 
 Returns a new string with any special regular expression characters
 escaped, to match the original string literally in POSIX regular
 expressions.
 
-\subsubsection*{(irregex-opt <list-of-strings>)}
+\subsubsection{(irregex-opt <list-of-strings>)}
 
 Returns an optimized SRE matching any of the literal strings
-in the list, like Emacs' \q{regexp-opt}.  Note this optimization
+in the list, like Emacs' \scheme{regexp-opt}.  Note this optimization
 doesn't help when irregex is able to build a DFA.
 
-\subsubsection*{(sre->string <sre>)}
+\subsubsection{(sre->string <sre>)}
 
 Convert an SRE to a PCRE-style regular expression string, if
 possible.
@@ -812,7 +803,7 @@ possible.
 
 \section{License}
 
-Copyright (c) 2005-2020 Alex Shinn
+Copyright (c) 2005-2021 Alex Shinn
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -841,34 +832,31 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 \section{References}
 
 \bibitem{R5RS} R. Kelsey, W. Clinger, J. Rees (eds.)
-\urlh{http://www.schemers.org/Documents/Standards/R5RS/}{Revised^5 Report on the Algorithmic Language Scheme}
+\hyperlink[http://www.schemers.org/Documents/Standards/R5RS/]{Revised^5 Report on the Algorithmic Language Scheme}
 
 \bibitem{ImplementingRegexps} Russ Cox
-\urlh{http://swtch.com/~rsc/regexp/}{Implementing Regular Expressions}
+\hyperlink[http://swtch.com/~rsc/regexp/]{Implementing Regular Expressions}
 
 \bibitem{Tcl} Russ Cox
-\urlh{http://compilers.iecc.com/comparch/article/07-10-026}{Henry Spencer's Tcl Regex Library}
+\hyperlink[http://compilers.iecc.com/comparch/article/07-10-026]{Henry Spencer's Tcl Regex Library}
 
 \bibitem{SRE} Olin Shivers
-\urlh{http://www.scsh.net/docu/post/sre.html}{Proposed SRE regular-expression notation}
+\hyperlink[http://www.scsh.net/docu/post/sre.html]{Proposed SRE regular-expression notation}
 
 \bibitem{SCSH} Olin Shivers
-\urlh{http://www.scsh.net/docu/html/man-Z-H-7.html}{Pattern-matching strings with regular expressions}
+\hyperlink[http://www.scsh.net/docu/html/man-Z-H-7.html]{Pattern-matching strings with regular expressions}
 
 \bibitem{Gauche} Shiro Kawai
-\urlh{http://practical-scheme.net/gauche/man/gauche-refe_49.html}{Gauche Scheme - Regular Expressions}
+\hyperlink[http://practical-scheme.net/gauche/man/gauche-refe_49.html]{Gauche Scheme - Regular Expressions}
 
 \bibitem{Perl6} Damian Conway
-\urlh{http://www.perl.com/pub/a/2002/08/22/exegesis5.html}{Perl6 Exegesis 5 - Regular Expressions}
+\hyperlink[http://www.perl.com/pub/a/2002/08/22/exegesis5.html]{Perl6 Exegesis 5 - Regular Expressions}
 
 \bibitem{PCRE} Philip Hazel
-\urlh{http://www.pcre.org/}{PCRE - Perl Compatible Regular Expressions}
+\hyperlink[http://www.pcre.org/]{PCRE - Perl Compatible Regular Expressions}
 
 \bibitem{tNFAs} Ville Laurikari
-\urlh{http://laurikari.net/ville/spire2000-tnfa.pdf}{NFAs with Tagged Transitions, their Conversion to Deterministic Automata and Application to Regular Expressions}
+\hyperlink[http://laurikari.net/ville/spire2000-tnfa.pdf]{NFAs with Tagged Transitions, their Conversion to Deterministic Automata and Application to Regular Expressions}
 
 \bibitem{RegexpSubmatches} Ville Laurikari
-\urlh{http://laurikari.net/ville/regex-submatch.pdf}{Efficient submatch addressing for regular expressions}
-
-\eval(display "<br /><br /><br /><br />\n")
-
+\hyperlink[http://laurikari.net/ville/regex-submatch.pdf]{Efficient submatch addressing for regular expressions}
