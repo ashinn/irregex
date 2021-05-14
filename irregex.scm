@@ -605,7 +605,7 @@
            (define (collect)
              (if (= from i) res (cons (substring str from i) res)))
            (if (>= i end)
-               (error "unterminated string in embeded SRE" str)
+               (error "unterminated string in embedded SRE" str)
                (case (string-ref str i)
                  ((#\") (k (string-cat-reverse (collect)) (+ i 1)))
                  ((#\\) (scan (+ i 1) (+ i 2) (collect)))
