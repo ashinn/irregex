@@ -241,7 +241,14 @@ The rationale for providing the \scheme{<from-index>} (which is not
 provided in the SCSH \scheme{regexp-fold} utility), is because this
 information is useful (e.g. for extracting the unmatched portion of
 the string before the current match, as needed in
-\scheme{irregex-replace}), and not otherwise directly accessible.
+\scheme{irregex-replace/all}), and not otherwise directly accessible.
+
+Note when the pattern matches an empty string, to avoid an infinite
+loop we continue from one char after the end of the match (as opposed
+to the end in the normal case).  The \scheme{<from-index>} passed to
+the subsequent \scheme{<kons>} or \scheme{<finish>} still refers to
+the original previous match end, however, so \scheme{irregex-split}
+and \scheme{irregex-replace/all}, etc. do the right thing.
 
 The optional \scheme{<finish>} takes two arguments:
 
