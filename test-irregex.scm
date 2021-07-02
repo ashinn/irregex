@@ -1,7 +1,7 @@
 #!/usr/local/bin/csi -script
 
 (cond-expand
- (chicken-5 (import test matchable (chicken format) (chicken port) (chicken io) (chicken string)))
+ (chicken-5 (import test matchable (chicken format) (chicken port) (chicken io) (rename (chicken string) (string-intersperse string-join))))
  (chicken (use test extras utils matchable))
  (else
   (import (scheme base) (scheme char) (scheme cxr)
