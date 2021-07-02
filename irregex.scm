@@ -2153,12 +2153,18 @@
                                         (chunk&position (cons src (+ i 1))))
                                     (vector-set! slot (car s) chunk&position)))
                                 (cdr cmds))
-                      (for-each (lambda (c)
-                                  (let* ((tag (vector-ref c 0))
-                                         (ss (vector-ref memory (vector-ref c 1)))
-                                         (ds (vector-ref memory (vector-ref c 2))))
-                                    (vector-set! ds tag (vector-ref ss tag))))
-                                (car cmds)))))
+                      ;; Reassigning commands may be in an order which
+                      ;; causes memory cells to be clobbered before
+                      ;; they're read out.  Make 2 passes to maintain
+                      ;; old values by copying them into a closure.
+                      (for-each (lambda (execute!) (execute!))
+                                (map (lambda (c)
+                                       (let* ((tag (vector-ref c 0))
+                                              (ss (vector-ref memory (vector-ref c 1)))
+                                              (ds (vector-ref memory (vector-ref c 2)))
+                                              (value-from (vector-ref ss tag)))
+                                         (lambda () (vector-set! ds tag value-from))))
+                                     (car cmds))))))
                   (if new-finalizer
                       (lp2 (+ i 1) next src (+ i 1) new-finalizer)
                       (lp2 (+ i 1) next res-src res-index #f))))

@@ -171,3 +171,4 @@ multiple words	multiple words, yeah	y	&	multiple words
 (a([^a])*)*	abcaBC	y	&-\1-\2	abcaBC-aBC-C
 ([Aa]b).*\1	abxyzab	y	&-\1	abxyzab-ab
 a([\/\\]*)b	a//\\b	y	&-\1	a//\\b-//\\
+(?:[[:alnum:]]|(@[[:alnum:]]))*	oeh@2tu@2n342	y	\1	@2
