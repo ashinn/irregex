@@ -575,5 +575,14 @@
   ;; irregex-flags, irregex-lengths
   )
 
+(test-group "SRE representation edge cases"
+  ;; NFA compilation skipped alternative after empty sequence (#26, found by John Clements)
+  (test "empty sequence in \"or\""
+        ""
+        (irregex-match-substring (irregex-search `(or (seq) "foo") "")))
+  (test "alternative to empty sequence in \"or\""
+        "foo"
+        (irregex-match-substring (irregex-search `(or (seq) "foo") "foo"))))
+
 (test-end)
 

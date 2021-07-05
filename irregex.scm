@@ -2481,7 +2481,7 @@
                                            flags
                                            next))))
                           (and a
-                               (let ((c (add-state! (new-state-number a)
+                               (let ((c (add-state! (new-state-number (max a b))
                                                     '())))
                                  (nfa-add-epsilon! buf c a #f)
                                  (nfa-add-epsilon! buf c b #f)
