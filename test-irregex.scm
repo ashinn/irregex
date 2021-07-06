@@ -450,6 +450,10 @@
       (irregex-extract (irregex "[aeiou]*") "foobarbaz"))
   (test '("Line 1\n" "Line 2\n" "Line 3")
       (irregex-split 'bol "Line 1\nLine 2\nLine 3"))
+  (test '("foo\n" "bar\n" "baz\n")
+      (irregex-extract '(: bol (+ alpha) newline) "\nfoo\nbar\nbaz\n"))
+  (test '("\nblah" "\nblah" "\nblah")
+      (irregex-extract '(: newline "blah" eol) "\nblah\nblah\nblah\n"))
   )
 
 (define (extract name irx str)
