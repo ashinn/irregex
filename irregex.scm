@@ -3827,13 +3827,14 @@
                     matches)))
             (if (not m)
                 (finish from acc)
-                (let ((j (%irregex-match-end-index m 0))
+                (let ((j-start (%irregex-match-start-index m 0))
+                      (j (%irregex-match-end-index m 0))
                       (acc (kons from m acc)))
                   (irregex-reset-matches! matches)
                   (cond
                    ((flag-set? (irregex-flags irx) ~consumer?)
                     (finish j acc))
-                   ((= j i)
+                   ((= j j-start)
                     ;; skip one char forward if we match the empty string
                     (lp (list str j end) j (+ j 1) acc))
                    (else
