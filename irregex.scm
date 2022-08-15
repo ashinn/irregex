@@ -1504,8 +1504,8 @@
          (cons (car sre) (map rec (cdr sre))))))
      (else
       (case sre
-        ((any) 'utf8-any)
-        ((nonl) 'utf8-nonl)
+        ((any) (if utf8? 'utf8-any 'any))
+        ((nonl) (if utf8? 'utf8-nonl 'nonl))
         (else
          (if (and utf8? (char? sre) (high-char? sre))
              (sre-sequence (map integer->char (char->utf8-list sre)))
