@@ -418,6 +418,12 @@
   (test "***x***"
       (irregex-replace/all
        (irregex '(: #\space) 'dfa) "   x   " "*"))
+  (test "A:42"
+      (irregex-replace/all "^" "42" "A:"))
+  (test "A:42"
+      (irregex-replace/all 'bos "42" "A:"))
+  (test "A:42"
+      (irregex-replace/all 'bol "42" "A:"))
   (test "xaac"
       (irregex-replace/all
        (irregex '(or (seq bos "a") (seq bos "b")) 'backtrack) "aaac" "x"))
