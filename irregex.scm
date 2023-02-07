@@ -2210,10 +2210,10 @@
      . (or alphanumeric punctuation #\$ #\+ #\< #\= #\> #\^ #\` #\| #\~))
     (graph . graphic)
     (blank . (or #\space ,(integer->char (- (char->integer #\space) 23))))
-    (whitespace . (or blank #\newline))
+    (whitespace . (or blank #\newline #\page #\return #\vtab))
     (space . whitespace)
     (white . whitespace)
-    (printing or graphic whitespace)
+    (printing . (or graphic whitespace))
     (print . printing)
 
     ;; XXXX we assume a (possibly shifted) ASCII-based ordering
