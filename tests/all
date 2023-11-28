@@ -13,10 +13,16 @@ cd -- "$root"
 # tests/SCHEME-*.scm glob pattern.
 schemes='
 	chicken
+	guile
 '
 
 intprt_chicken() {
 	csi -s "$@"
+}
+
+intprt_guile() {
+	# While compilation gives better error messages, it is way too slow.
+	guile --no-auto-compile -L . -s "$@"
 }
 
 for scheme in $schemes; do
