@@ -5,9 +5,14 @@ To execute all tests, run the following script:
     ./tests/all
 
 This script can be executed from any location, so both ./tests/all and ./all
-(assuming you are in tests directory) are valid invocations.
+(assuming you are in tests directory) are valid invocations.  Be aware that you
+need to have all necessary dependencies configured and available in your PATH.
+Assuming you are using Guix, you can run all tests in an appropriate environment
+like this:
+
+    guix shell -m manifest.scm -C -- ./tests/all
 
 To execute just a specific test suite, run the desired file from the root of the
 repository using the appropriate scheme interpret, so for example:
 
-    csi -s ./tests/test-irregex-utf8.scm
+    csi -s ./tests/chicken-irregex-utf8.scm

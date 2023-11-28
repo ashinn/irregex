@@ -1,8 +1,3 @@
-(cond-expand
-  (chicken-5 (import test))
-  (else (use test extras utils)))
-(load "irregex.scm")
-
 (test-begin)
 
 (test-assert (irregex-search "\\x41," "A,"))

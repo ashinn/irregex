@@ -6,7 +6,22 @@ root=$tdir/..
 
 cd -- "$root"
 
-for t in tests/test-*.scm; do
-	printf '* %s:\n' "$t"
-	csi -s "$t"
+# List of schemes to use.  For each scheme you need to provide a intprt_SCHEME
+# unary function invoking the interpret for a file passed in as the argument.
+#
+# The script will execute intprt_SCHEME function for every file matching the
+# tests/SCHEME-*.scm glob pattern.
+schemes='
+	chicken
+'
+
+intprt_chicken() {
+	csi -s "$@"
+}
+
+for scheme in $schemes; do
+	for t in tests/$scheme-*.scm; do
+		printf '* %s:\n' "$t"
+		intprt_$scheme "$t"
+	done
 done
