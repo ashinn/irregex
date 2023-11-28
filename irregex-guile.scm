@@ -17,4 +17,4 @@
 	    irregex-nfa irregex-flags irregex-lengths irregex-names
             irregex-num-submatches irregex-extract irregex-split))
 
-(load-from-path "rx/source/irregex.scm")
+(load-from-path "rx/source/irregex")
