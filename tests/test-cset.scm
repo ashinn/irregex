@@ -5,7 +5,7 @@
 
 (define (vowel? c) (member c '(#\a #\e #\i #\o #\u)))
 
-(test-begin)
+(test-begin "cset")
 
 (test-assert
  (cset=? (plist->cset '(#\a #\a #\e #\e #\i #\i #\o #\o #\u #\u))
