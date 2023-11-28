@@ -13,11 +13,16 @@ cd -- "$root"
 # tests/SCHEME-*.scm glob pattern.
 schemes='
 	chicken
+	gauche
 	guile
 '
 
 intprt_chicken() {
 	csi -s "$@"
+}
+
+intprt_gauche() {
+	gosh -I. -Itests "$@"
 }
 
 intprt_guile() {
