@@ -363,7 +363,12 @@
 ;; (define *all-chars* `(/ ,(integer->char (- (char->integer #\space) 32)) ,(integer->char (+ (char->integer #\space) 223))))
 
 ;; set to #f to ignore even an explicit request for utf8 handling
-(define *allow-utf8-mode?* #t)
+;; The utf8-mode is undesired on any implementation with native unicode support.
+;; It is a workaround for those that treat strings as a raw byte sequences, and
+;; does not work well otherwise.  So disable it on implementations known to
+;; handle unicode natively.
+(define *allow-utf8-mode?* (cond-expand ((and chicken (not full-unicode)) #t)
+                                        (else #f)))
 
 ;; (define *named-char-properties* '())
 
