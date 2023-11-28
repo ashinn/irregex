@@ -12,10 +12,15 @@ cd -- "$root"
 # The script will execute intprt_SCHEME function for every file matching the
 # tests/SCHEME-*.scm glob pattern.
 schemes='
+	chibi
 	chicken
 	gauche
 	guile
 '
+
+intprt_chibi() {
+	chibi-scheme -I. -Itests "$@"
+}
 
 intprt_chicken() {
 	csi -s "$@"
