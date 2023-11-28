@@ -1,5 +1,4 @@
-
-;; derived from Gauche's regex tests
+;;; This test suite is derived from Gauche's regex tests.
 
 (cond-expand
   (chicken-5 (import srfi-1 test))
@@ -857,7 +856,7 @@
 ;;                            "**\\k<match>**"))
 
 ;; (test "regexp-replace" "abfedhi"
-;;        (regexp-replace "c(.*)g" "abcdefghi" 
+;;        (regexp-replace "c(.*)g" "abcdefghi"
 ;;                        (lambda (m)
 ;;                          (list->string
 ;;                           (reverse

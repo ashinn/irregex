@@ -1,4 +1,3 @@
-
 ;;; Adapted from SCSH SRE tests by Christoph Hetz
 
 (cond-expand

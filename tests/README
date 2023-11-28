@@ -1,0 +1,13 @@
+This directory contains the tests for irregex.
+
+To execute all tests, run the following script:
+
+    ./tests/all
+
+This script can be executed from any location, so both ./tests/all and ./all
+(assuming you are in tests directory) are valid invocations.
+
+To execute just a specific test suite, run the desired file from the root of the
+repository using the appropriate scheme interpret, so for example:
+
+    csi -s ./tests/test-irregex-utf8.scm

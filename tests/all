@@ -1,0 +1,12 @@
+#!/bin/sh
+set -eu
+
+tdir=$(dirname "$0")
+root=$tdir/..
+
+cd -- "$root"
+
+for t in tests/test-*.scm; do
+	printf '* %s:\n' "$t"
+	csi -s "$t"
+done
