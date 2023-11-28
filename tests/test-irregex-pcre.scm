@@ -1,5 +1,3 @@
-#!/usr/local/bin/csi -script
-
 (cond-expand
   (chicken-5 (import test))
   (else (use test extras utils)))

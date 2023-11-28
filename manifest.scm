@@ -27,7 +27,9 @@ data structure to be expressed in a concise manner.  Pattern matching is found
 in several modern languages, notably Standard ML, Haskell and Miranda.")
    (license license:public-domain)))
 
-(packages->manifest (list chicken
+(packages->manifest (list coreutils
+
+                          chicken
                           chicken-matchable
                           chicken-srfi-1
                           chicken-test))
