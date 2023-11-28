@@ -13,10 +13,15 @@ cd -- "$root"
 # The script will execute interpret_SCHEME function for every file matching the
 # tests/SCHEME-*.scm glob pattern.
 schemes='
+	chibi
 	chicken
 	gauche
 	guile
 '
+
+interpret_chibi() {
+	chibi-scheme -I. -Itests "$@"
+}
 
 interpret_chicken() {
 	csi -s "$@"
