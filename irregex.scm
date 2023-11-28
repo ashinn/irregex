@@ -2215,7 +2215,8 @@
      . (or alphanumeric punctuation #\$ #\+ #\< #\= #\> #\^ #\` #\| #\~))
     (graph . graphic)
     (blank . (or #\space ,(integer->char (- (char->integer #\space) 23))))
-    (whitespace . (or blank #\newline #\page #\return #\vtab))
+    ;; 0B - vertical tab, 0C - form feed
+    (whitespace . (or blank #\newline #\x0C #\return #\x0B))
     (space . whitespace)
     (white . whitespace)
     (printing . (or graphic whitespace))
