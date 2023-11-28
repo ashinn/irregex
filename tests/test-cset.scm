@@ -5,13 +5,13 @@
 
 (define (vowel? c) (member c '(#\a #\e #\i #\o #\u)))
 
-(test-begin)
+(test-begin "cset")
 
 (test-assert
  (cset=? (plist->cset '(#\a #\a #\e #\e #\i #\i #\o #\o #\u #\u))
          (string->cset "ioeauaiii")))
 
-(test (plist->cset '(#\x #\y)) (string->cset "xy"))
+(test-equal (plist->cset '(#\x #\y)) (string->cset "xy"))
 (test-assert (not (cset=? (plist->cset '(#\x #\x #\y #\y #\z #\z))
                           (string->cset "xy"))))
 (test-assert (not (cset=? (plist->cset '(#\x #\z))
@@ -37,12 +37,12 @@
               (cset-union (range->cset (integer->char 97) (integer->char 102))
                           (string->cset "12345")))))
 
-(test 10 (cset-size (cset-intersection (sre->cset 'ascii) (sre->cset 'digit))))
+(test-equal 10 (cset-size (cset-intersection (sre->cset 'ascii) (sre->cset 'digit))))
 
-(test '(#\x #\x) (cset->plist (plist->cset '(#\x #\x))))
+(test-equal '(#\x #\x) (cset->plist (plist->cset '(#\x #\x))))
 (test-assert (not (equal? '(#\X #\X) (cset->plist (plist->cset '(#\x #\x))))))
 
-(test '(#\a #\d #\x #\z) (cset->plist (plist->cset '(#\a #\d #\x #\z))))
+(test-equal '(#\a #\d #\x #\z) (cset->plist (plist->cset '(#\a #\d #\x #\z))))
 
 (test-assert (cset-contains? (string->cset "xyz") #\x))
 (test-assert (not (cset-contains? (string->cset "xyz") #\a)))

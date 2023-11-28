@@ -4,5 +4,6 @@
 
 (load "irregex.scm")
 (load "irregex-utils.scm")
+(load "tests/chicken/test-support.scm")
 (load "tests/test-irregex-from-gauche.scm")
 (test-exit)

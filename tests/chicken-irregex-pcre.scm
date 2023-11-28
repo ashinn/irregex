@@ -3,5 +3,6 @@
   (else (use test extras utils)))
 
 (load "irregex.scm")
+(load "tests/chicken/test-support.scm")
 (load "tests/test-irregex-pcre.scm")
 (test-exit)

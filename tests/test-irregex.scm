@@ -80,12 +80,12 @@
         ((equal? "n" result)
          (test-assert name (not (matcher pattern input))))
         (else
-         (test name output
+         (test-equal name output
            (subst-matches (matcher pattern input) subst))))))
     (else
      (warning "invalid regex test line" line))))
 
-(test-begin)
+(test-begin "irregex")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; basic irregex
@@ -203,7 +203,7 @@
                   (else
                    (for-each
                     (lambda (rope)
-                      (test name output
+                      (test-equal name output
                         (subst-matches (irregex-search/chunked pattern
                                                                rope-chunker
                                                                rope)
@@ -330,35 +330,35 @@
     (test-assert
      (not (irregex-match-valid-index? (irregex-search "a(.*)(b)" "axxxb") -1))))
   (test-group "number of submatches"
-    (test 0 (irregex-num-submatches (irregex "a.*b")))
-    (test 1 (irregex-num-submatches (irregex "a(.*)b")))
-    (test 2 (irregex-num-submatches (irregex "(a(.*))b")))
-    (test 2 (irregex-num-submatches (irregex "a(.*)(b)")))
-    (test 10 (irregex-num-submatches (irregex "((((((((((a))))))))))")))
-    (test 0 (irregex-match-num-submatches (irregex-search "a.*b" "axxxb")))
-    (test 1 (irregex-match-num-submatches (irregex-search "a(.*)b" "axxxb")))
-    (test 2 (irregex-match-num-submatches (irregex-search "(a(.*))b" "axxxb")))
-    (test 2 (irregex-match-num-submatches (irregex-search "a(.*)(b)" "axxxb")))
-    (test 10 (irregex-match-num-submatches (irregex-search "((((((((((a))))))))))" "a"))))
+    (test-equal 0 (irregex-num-submatches (irregex "a.*b")))
+    (test-equal 1 (irregex-num-submatches (irregex "a(.*)b")))
+    (test-equal 2 (irregex-num-submatches (irregex "(a(.*))b")))
+    (test-equal 2 (irregex-num-submatches (irregex "a(.*)(b)")))
+    (test-equal 10 (irregex-num-submatches (irregex "((((((((((a))))))))))")))
+    (test-equal 0 (irregex-match-num-submatches (irregex-search "a.*b" "axxxb")))
+    (test-equal 1 (irregex-match-num-submatches (irregex-search "a(.*)b" "axxxb")))
+    (test-equal 2 (irregex-match-num-submatches (irregex-search "(a(.*))b" "axxxb")))
+    (test-equal 2 (irregex-match-num-submatches (irregex-search "a(.*)(b)" "axxxb")))
+    (test-equal 10 (irregex-match-num-submatches (irregex-search "((((((((((a))))))))))" "a"))))
   (test-group "match substring"
-    (test "axxxb" (irregex-match-substring (irregex-search "a.*b" "axxxb") 0))
+    (test-equal "axxxb" (irregex-match-substring (irregex-search "a.*b" "axxxb") 0))
     (test-error (irregex-match-substring (irregex-search "a.*b" "axxxb") 1))
-    (test "xxx" (irregex-match-substring (irregex-search "a(.*)|b" "axxx") 1))
-    (test #f (irregex-match-substring (irregex-search "a(.*)|b" "b") 1))
+    (test-equal "xxx" (irregex-match-substring (irregex-search "a(.*)|b" "axxx") 1))
+    (test-equal #f (irregex-match-substring (irregex-search "a(.*)|b" "b") 1))
     (test-error (irregex-match-substring (irregex-search "a(.*)|b" "axxx") 2))
     (test-error (irregex-match-substring (irregex-search "a(.*)|b" "b") 2)))
   (test-group "match start-index"
-    (test 0 (irregex-match-start-index (irregex-search "a.*b" "axxxb") 0))
+    (test-equal 0 (irregex-match-start-index (irregex-search "a.*b" "axxxb") 0))
     (test-error (irregex-match-start-index (irregex-search "a.*b" "axxxb") 1))
-    (test 1 (irregex-match-start-index (irregex-search "a(.*)|b" "axxx") 1))
-    (test #f (irregex-match-start-index (irregex-search "a(.*)|b" "b") 1))
+    (test-equal 1 (irregex-match-start-index (irregex-search "a(.*)|b" "axxx") 1))
+    (test-equal #f (irregex-match-start-index (irregex-search "a(.*)|b" "b") 1))
     (test-error (irregex-match-start-index (irregex-search "a(.*)|b" "axxx") 2))
     (test-error (irregex-match-start-index (irregex-search "a(.*)|b" "b") 2)))
   (test-group "match end-index"
-    (test 5 (irregex-match-end-index (irregex-search "a.*b" "axxxb") 0))
+    (test-equal 5 (irregex-match-end-index (irregex-search "a.*b" "axxxb") 0))
     (test-error (irregex-match-end-index (irregex-search "a.*b" "axxxb") 1))
-    (test 4 (irregex-match-end-index (irregex-search "a(.*)|b" "axxx") 1))
-    (test #f (irregex-match-end-index (irregex-search "a(.*)|b" "b") 1))
+    (test-equal 4 (irregex-match-end-index (irregex-search "a(.*)|b" "axxx") 1))
+    (test-equal #f (irregex-match-end-index (irregex-search "a(.*)|b" "b") 1))
     (test-error (irregex-match-end-index (irregex-search "a(.*)|b" "axxx") 2))
     (test-error (irregex-match-end-index (irregex-search "a(.*)|b" "b") 2)))
   )
@@ -366,19 +366,19 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (test-group "utils"
-  (test "h*llo world"
+  (test-equal "h*llo world"
       (irregex-replace "[aeiou]" "hello world" "*"))
-  (test "hello world"
+  (test-equal "hello world"
       (irregex-replace "[xyz]" "hello world" "*"))
-  (test "h*ll* w*rld"
+  (test-equal "h*ll* w*rld"
       (irregex-replace/all "[aeiou]" "hello world" "*"))
-  (test '("bob@test.com" "fred@example.com")
+  (test-equal '("bob@test.com" "fred@example.com")
       (irregex-fold 'email
                     (lambda (i m s) (cons (irregex-match-substring m) s))
                     '()
                     "bob@test.com and fred@example.com"
                     (lambda (i s) (reverse s))))
-  (test '("bob@test.com" "fred@example.com")
+  (test-equal '("bob@test.com" "fred@example.com")
       (irregex-fold/chunked
        'email
        (lambda (src i m s) (cons (irregex-match-substring m) s))
@@ -386,7 +386,7 @@
        rope-chunker
        (rope "bob@test.com and fred@example.com")
        (lambda (src i s) (reverse s))))
-  (test '("poo poo ")
+  (test-equal '("poo poo ")
       (irregex-fold '(+ "poo ")
                     (lambda (i m s)
                       (if (< i (irregex-match-end-index m 0))
@@ -394,59 +394,59 @@
                           s))
                     '()
                     "poo poo platter"))
-  (test "*  x   "
+  (test-equal "*  x   "
       (irregex-replace/all
        (irregex '(: bos #\space) 'backtrack) "   x   " "*"))
-  (test "*  x   "
+  (test-equal "*  x   "
       (irregex-replace/all
        (irregex '(: bos #\space) 'dfa) "   x   " "*"))
-  (test "***x***"
+  (test-equal "***x***"
       (irregex-replace/all
        (irregex '(: #\space) 'backtrack) "   x   " "*"))
-  (test "***x***"
+  (test-equal "***x***"
       (irregex-replace/all
        (irregex '(: #\space) 'dfa) "   x   " "*"))
-  (test "A:42"
+  (test-equal "A:42"
       (irregex-replace/all "^" "42" "A:"))
-  (test "A:42"
+  (test-equal "A:42"
       (irregex-replace/all 'bos "42" "A:"))
-  (test "A:42"
+  (test-equal "A:42"
       (irregex-replace/all 'bol "42" "A:"))
-  (test "xaac"
+  (test-equal "xaac"
       (irregex-replace/all
        (irregex '(or (seq bos "a") (seq bos "b")) 'backtrack) "aaac" "x"))
-  (test "xaac"
+  (test-equal "xaac"
       (irregex-replace/all
        (irregex '(or (seq bos "a") (seq bos "b")) 'dfa) "aaac" "x"))
-  (test "xaac"
+  (test-equal "xaac"
       (irregex-replace/all (irregex '(or (seq bos "a") "b") 'backtrack)
                            "aaac" "x"))
-  (test "xaac"
+  (test-equal "xaac"
       (irregex-replace/all (irregex '(or (seq bos "a") "b") 'dfa)
                            "aaac" "x"))
-  (test "*Line 1\n*Line 2"
+  (test-equal "*Line 1\n*Line 2"
       (irregex-replace/all 'bol "Line 1\nLine 2" "*"))
-  (test "**p*l*a*t*t*e*r"
+  (test-equal "**p*l*a*t*t*e*r"
       (irregex-replace/all '(* "poo ") "poo poo platter" "*"))
-  (test "x- y- z-"
+  (test-equal "x- y- z-"
       (irregex-replace/all '(: (look-behind (or "x" "y" "z")) "a")
                            "xa ya za"  "-"))
-  (test "any gosh darned string"
+  (test-equal "any gosh darned string"
       (irregex-replace/all '(: bos (* whitespace))
                            "any gosh darned string"  ""))
-  (test '("foo" " " "foo" " " "b" "a" "r" " " "foo")
+  (test-equal '("foo" " " "foo" " " "b" "a" "r" " " "foo")
       (irregex-extract '(or (: bow "foo" eow) any) "foo foo bar foo"))
-  (test '("f" "o" "o" "b" "a" "r" "b" "a" "z")
+  (test-equal '("f" "o" "o" "b" "a" "r" "b" "a" "z")
       (irregex-split (irregex "") "foobarbaz"))
-  (test '("f" "b" "r" "b" "z")
+  (test-equal '("f" "b" "r" "b" "z")
       (irregex-split (irregex "[aeiou]*") "foobarbaz"))
-  (test '("" "oo" "" "a" "" "" "a" "")
+  (test-equal '("" "oo" "" "a" "" "" "a" "")
       (irregex-extract (irregex "[aeiou]*") "foobarbaz"))
-  (test '("Line 1\n" "Line 2\n" "Line 3")
+  (test-equal '("Line 1\n" "Line 2\n" "Line 3")
       (irregex-split 'bol "Line 1\nLine 2\nLine 3"))
-  (test '("foo\n" "bar\n" "baz\n")
+  (test-equal '("foo\n" "bar\n" "baz\n")
       (irregex-extract '(: bol (+ alpha) newline) "\nfoo\nbar\nbaz\n"))
-  (test '("\nblah" "\nblah" "\nblah")
+  (test-equal '("\nblah" "\nblah" "\nblah")
       (irregex-extract '(: newline "blah" eol) "\nblah\nblah\nblah\n"))
   )
 
@@ -460,7 +460,7 @@
   (irregex-match-end-index (irregex-match irx str) name))
 
 (test-group "named submatches"
-  (test "matching submatch is seen and extracted"
+  (test-equal "matching submatch is seen and extracted"
         "first" (extract 'first `(or (submatch-named first "first")
                                      (submatch-named second "second"))
                          "first"))
@@ -468,7 +468,7 @@
                (valid? 'first `(or (submatch-named first "first")
                                    (submatch-named second "second"))
                        "first"))
-  (test "nonmatching submatch is known but returns false"
+  (test-equal "nonmatching submatch is known but returns false"
         #f
         (extract 'second `(or (submatch-named first "first")
                               (submatch-named second "second"))
@@ -485,24 +485,24 @@
                (not (valid? 'third `(or (submatch-named first "first")
                                          (submatch-named second "second"))
                             "first")))
-  (test "matching alternative is used"
+  (test-equal "matching alternative is used"
         "first" (extract 'sub `(or (submatch-named sub "first")
                                    (submatch-named sub "second"))
                          "first"))
-  (test "matching alternative is used (second match)"
+  (test-equal "matching alternative is used (second match)"
         "second" (extract 'sub `(or (submatch-named sub "first")
                                     (submatch-named sub "second"))
                          "second"))
-  (test "last match is used with multiple matches for a name"
+  (test-equal "last match is used with multiple matches for a name"
         "second" (extract 'sub `(seq (submatch-named sub "first")
                                      space
                                      (submatch-named sub "second"))
                          "first second"))
-  (test "submatch start"
+  (test-equal "submatch start"
         1 (start-idx 'xs `(seq "a" (submatch-named xs (+ "x")) "b") "axxxb"))
   (test-error "unknown submatch start"
               (start-idx 'xs `(seq "a" (submatch-named ys (+ "x")) "b") "axxxb"))
-  (test "submatch end"
+  (test-equal "submatch end"
         4 (end-idx 'xs `(seq "a" (submatch-named xs (+ "x")) "b") "axxxb"))
   (test-error "unknown submatch start"
               (end-idx 'xs `(seq "a" (submatch-named ys (+ "x")) "b") "axxxb")))
@@ -575,12 +575,11 @@
 
 (test-group "SRE representation edge cases"
   ;; NFA compilation skipped alternative after empty sequence (#26, found by John Clements)
-  (test "empty sequence in \"or\""
+  (test-equal "empty sequence in \"or\""
         ""
         (irregex-match-substring (irregex-search `(or (seq) "foo") "")))
-  (test "alternative to empty sequence in \"or\""
+  (test-equal "alternative to empty sequence in \"or\""
         "foo"
         (irregex-match-substring (irregex-search `(or (seq) "foo") "foo"))))
 
 (test-end)
-

@@ -1,4 +1,4 @@
-(test-begin)
+(test-begin "pcre")
 
 (test-assert (irregex-search "\\x41," "A,"))
 (test-assert (irregex-search "\\x{0041}" "A,"))
@@ -20,5 +20,3 @@
 ;; (test-assert (irregex-search "(sens|respons)e and (?1)ibility" "sense and responsibility"))
 
 (test-end)
-
-

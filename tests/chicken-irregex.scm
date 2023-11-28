@@ -7,5 +7,6 @@
           (srfi 130) (chibi match) (chibi test))))
 
 (load "irregex.scm")
+(load "tests/chicken/test-support.scm")
 (load "tests/test-irregex.scm")
 (test-exit)

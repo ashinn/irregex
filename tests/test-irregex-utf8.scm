@@ -1,4 +1,4 @@
-(test-begin)
+(test-begin "utf8")
 
 (test-assert (irregex-search "(?u:<..>)" "<漢字>"))
 (test-assert (irregex-search "(?u:<.*>)" "<漢字>"))
