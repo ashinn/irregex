@@ -8,8 +8,8 @@
 	    irregex-search/matches irregex-match
 	    irregex-search/chunked irregex-match/chunked irregex-fold/chunked
 	    make-irregex-chunker irregex-match-substring
-	    irregex-match-subchunk irregex-match-start-source
-	    irregex-match-start-index irregex-match-end-source
+	    irregex-match-subchunk irregex-match-start-chunk
+	    irregex-match-start-index irregex-match-end-chunk
 	    irregex-match-end-index irregex-match-num-submatches
             irregex-match-names irregex-match-valid-index?
 	    irregex-fold irregex-replace irregex-replace/all
