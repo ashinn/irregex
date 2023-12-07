@@ -1,5 +1,4 @@
-
-;; derived from Gauche's regex tests
+;;; This test suite is derived from Gauche's regex tests.
 
 (cond-expand
   (chicken-5 (import srfi-1 test))
