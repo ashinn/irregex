@@ -1,11 +1,5 @@
 ;;; This test suite is derived from Gauche's regex tests.
 
-(cond-expand
-  (chicken-5 (import srfi-1 test))
-  (else (use srfi-1 test)))
-(load "irregex.scm")
-(load "irregex-utils.scm")
-
 (define-syntax let1
   (syntax-rules ()
     ((let1 var val body ...)

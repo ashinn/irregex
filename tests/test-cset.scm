@@ -3,12 +3,6 @@
 
 ;;; Some of these are based on Olin Shivers' SRFI 14 tests
 
-(cond-expand
-  (chicken-5 (import test (chicken irregex)))
-  (else (use test extras utils irregex)))
-
-(load "irregex.scm")
-
 (define (vowel? c) (member c '(#\a #\e #\i #\o #\u)))
 
 (test-begin)
