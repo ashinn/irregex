@@ -40,3 +40,4 @@ new-dist.sh
 *.html
 *.tar.gz
 *.tgz
+/tests/*.log

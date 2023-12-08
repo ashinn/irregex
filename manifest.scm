@@ -1,4 +1,5 @@
 (use-modules (gnu packages chicken)
+             (gnu packages guile)
              (guix build-system chicken)
              (guix download)
              ((guix licenses) #:prefix license:)
@@ -32,4 +33,6 @@ in several modern languages, notably Standard ML, Haskell and Miranda.")
                           chicken
                           chicken-matchable
                           chicken-srfi-1
-                          chicken-test))
+                          chicken-test
+
+                          guile-3.0))
