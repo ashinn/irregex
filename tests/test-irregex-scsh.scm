@@ -8,7 +8,7 @@
 (define test-string 
   "Dieser Test-String wurde am 29.07.2004 um 5:23PM erstellt.\na aa aaa aaaa\nab aabb aaabbb\naba abba abbba\n1 12 123 1234\nyyyyyyyyyy\n")
 
-(test-begin)
+(test-begin "scsh")
 
 (test-assert (not (irregex-search '(: "xxx") test-string)))
 

@@ -85,7 +85,7 @@
     (else
      (warning "invalid regex test line" line))))
 
-(test-begin)
+(test-begin "irregex")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; basic irregex

@@ -37,7 +37,7 @@
                 (irregex-match-substring match i)))
           (else #f))))
 
-(test-begin)
+(test-begin "from-gauche")
 
 (test "a(b)c" '("abc" "b")
        (match&list "a(b)c" "abc"))

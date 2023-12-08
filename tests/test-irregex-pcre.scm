@@ -1,4 +1,4 @@
-(test-begin)
+(test-begin "pcre")
 
 (test-assert (irregex-search "\\x41," "A,"))
 (test-assert (irregex-search "\\x{0041}" "A,"))
