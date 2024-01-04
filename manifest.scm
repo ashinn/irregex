@@ -31,6 +31,8 @@ in several modern languages, notably Standard ML, Haskell and Miranda.")
 
 (packages->manifest (list coreutils
 
+                          chibi-scheme
+
                           chicken
                           chicken-matchable
                           chicken-srfi-1
