@@ -1,6 +1,6 @@
 ;;;; irregex.scm -- IrRegular Expressions
 ;;
-;; Copyright (c) 2005-2021 Alex Shinn.  All rights reserved.
+;; Copyright (c) 2005-2024 Alex Shinn.  All rights reserved.
 ;; BSD-style license: http://synthcode.com/license.txt
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -30,6 +30,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; History
+;; 0.9.11: 2024/02/23 - Guile test and packaging support from Tomas Volf.
 ;; 0.9.10: 2021/07/06 - fixes for submatches under kleene star, empty seqs
 ;;                     in alternations, and bol in folds for backtracking
 ;;                     matcher (thanks John Clements and snan for reporting
