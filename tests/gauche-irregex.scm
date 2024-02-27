@@ -11,6 +11,7 @@
 (set! test-log-to-file "tests/gauche-irregex.log")
 
 (load "irregex.scm")
+(load "irregex-utils.scm")
 (load "gauche/test-support.scm")
 (load "test-irregex.scm")
 (test-exit)

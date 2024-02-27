@@ -37,7 +37,7 @@ irregex.html: irregex.doc
 doc: irregex.html
 
 test:
-	csi -script test-all.scm
+	csi -script tests/chicken-irregex.scm
 
 clean:
 	rm -f *~ */*~ *.so

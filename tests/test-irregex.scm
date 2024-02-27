@@ -450,6 +450,15 @@
       (irregex-extract '(: newline "blah" eol) "\nblah\nblah\nblah\n"))
   )
 
+(test-group "parsing"
+  (test "c+" (sre->string '(+ "c")))
+  (test "(?:abc)+" (sre->string '(+ "abc")))
+  (test "(?:abc|def)+" (sre->string '(+ (or "abc" "def"))))
+  (test '(+ #\c) (string->sre "c+"))
+  (test '(+ "abc") (string->sre "(?:abc)+"))
+  (test '(+ (or "abc" "def")) (string->sre "(?:abc|def)+"))
+  )
+
 (define (extract name irx str)
   (irregex-match-substring (irregex-match irx str) name))
 (define (valid? name irx str)

@@ -14,6 +14,7 @@
 (set! test-log-to-file "tests/guile-irregex.log")
 
 (load-from-path "irregex")
+(load-from-path "irregex-utils")
 (load "guile/test-support")
 (load "test-irregex")
 (test-exit)

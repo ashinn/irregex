@@ -104,7 +104,7 @@
            (display ")" out))
           ((* + ? *? ??)
            (cond
-            ((pair? (cddr x))
+            ((or (pair? (cddr x)) (and (string? (cadr x)) (not (= 1 (string-length (cadr x))))))
              (display "(?:" out) (for-each lp (cdr x)) (display ")" out))
             (else (lp (cadr x))))
            (display (car x) out))

@@ -5,5 +5,6 @@
         (srfi 130))
 
 (load "irregex.scm")
+(load "irregex-utils.scm")
 (load "tests/test-irregex.scm")
 (test-exit)
