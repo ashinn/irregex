@@ -31,6 +31,7 @@
    irregex-opt
    sre->string)
   (import 
+    (srfi :0 cond-expand)
     (except (rnrs) error find filter remove)
     (only (chezscheme) include get-output-string open-output-string)
     (irregex)
