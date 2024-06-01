@@ -66,6 +66,7 @@
     irregex-split
     sre->cset)
   (import 
+    (srfi :0 cond-expand)
     (except (rnrs) error find filter remove)
     (rnrs r5rs)
     (rnrs mutable-pairs)
