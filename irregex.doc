@@ -466,7 +466,7 @@ So, whereas \scheme{?} can be thought to mean "match or don't match,"
 as possible, but \scheme{*?} tries first to match zero times, and only
 consumes one at a time if that fails.  If you have a greedy operator
 followed by a non-greedy operator in the same pattern, they can
-produce surprisins results as they compete to make the match longer or
+produce surprising results as they compete to make the match longer or
 shorter.  If this seems confusing, that's because it is.  Non-greedy
 repetitions are defined only in terms of the specific backtracking
 algorithm used to implement them, which for compatibility purposes
